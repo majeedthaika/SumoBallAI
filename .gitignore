@@ -1,3 +1,2 @@
-train_screen_model/images/*.npy
-train_screen_model/images/*.png
+train_screen_model/images/
 train_screen_model/dataset.p
