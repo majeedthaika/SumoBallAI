@@ -32,7 +32,7 @@ class RunSim:
 	def on_frame(self, state, img, frame, state_type, vnc):
 		# print(vnc.screen.cursor_loc)
 
-		if not self.is_ingame:
+		if not self.is_ingame: # auto-game loader
 			if (state_type == "load_screen"):
 				vnc.send_mouse("Left", (120, 130)) # click start
 				vnc.send_mouse("Left", (120, 130)) # need twice to actually press button
@@ -68,6 +68,8 @@ class RunSim:
 					self.is_ingame = True
 			else:
 				pass # in game
+
+		return self.is_ingame
 
 
 RunSim(set_player_types=["Player1", "CPU1", "None", "None", "None", "None"], set_deathmatch=False)

@@ -2,7 +2,7 @@ import os
 import numpy as np
 from PIL import Image
 import importlib.util
-from keras.models import load_model
+from .DDQN import DDQN
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 class Environment:
@@ -30,11 +30,13 @@ class Environment:
         self.action_names = self.env_config["action_names"]
         self.state_space = self.env_config["state_space"]
 
+        self.is_ingame = False
+
         try:
             self.model = load_model(self.model_path)
         except OSError as e:
             print("No state prediction!")
-            self.model = None
+            exit(0)
             """# Missing model, prompt for collecting training data
             ynq = None
             while ynq not in ["y", "n", "q"]:
@@ -46,7 +48,14 @@ class Environment:
             else:
                 print("Starting Game Mode, Collecting unlabeled images")
             """
+        #in-game model
+        self.ingame_actions = self.env_config["ingame_action_names"]
+        self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
+        self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 
+        self.ddqn = DDQN(ingame_actions=self.ingame_actions, 
+                                    models_path=self.ingame_models_path, 
+                                    load_path=self.ingame_load_model_path)
 
     def load_config(self):
         spec = importlib.util.spec_from_file_location("module.define", os.path.join(self.path, "__init__.py"))
@@ -83,11 +92,14 @@ class Environment:
     def on_frame(self):
         state, im = self.render()
         state_type = None
-        if self.model:
+        
+        if not self.is_ingame:
             # print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
             state_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
+        else:
+            self.ddqn.state_producer(state[0])
+            state_type = self.ingame_actions[self.ddqn.get_action_idx()]
 
-        if self.frame_callback:
-            self.frame_callback(state, im, self.frame_count, state_type, self.vnc)
+        self.is_ingame = self.frame_callback(state, im, self.frame_count, state_type, self.vnc)
 
         self.frame_count += 1
