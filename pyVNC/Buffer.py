@@ -50,6 +50,7 @@ class DisplayBuffer(Buffer):
         self.window = None
         self.background = None
         self.window_style = 0  # Fullscreen
+        self.cursor_loc = (0, 0)
 
     def set_rfb_size(self, width, height, depth=32):
         super().set_rfb_size(width, height, depth)
@@ -68,6 +69,7 @@ class DisplayBuffer(Buffer):
             self._canvas = pygame.surfarray.array3d(self.canvas).swapaxes(0, 1)
 
         self.window.blit(self.canvas, (0, 0))
+        self.cursor_loc = pygame.mouse.get_pos()
         pygame.display.update()
 
     def get_array(self):

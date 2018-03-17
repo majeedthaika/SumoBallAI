@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from PIL import Image
-from importlib import util
+import importlib.util
 from keras.models import load_model
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -23,7 +23,8 @@ class Environment:
 
         self.env_config = self.load_config()
         self.swf = self.env_config["swf"]
-        self.model_path = os.path.join(self.path ,self.env_config["model"])
+        self.model_path = os.path.join(os.getcwd(), "train_screen_model", self.env_config["model"])
+        # self.model_path = os.path.join(self.path ,self.env_config["model"])
         self.dataset = self.env_config["dataset"]
         self.action_space = self.env_config["action_space"]
         self.action_names = self.env_config["action_names"]
@@ -48,8 +49,8 @@ class Environment:
 
 
     def load_config(self):
-        spec = util.spec_from_file_location("module.define", os.path.join(self.path, "__init__.py"))
-        mod = util.module_from_spec(spec)
+        spec = importlib.util.spec_from_file_location("module.define", os.path.join(self.path, "__init__.py"))
+        mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod.define
 
@@ -77,15 +78,16 @@ class Environment:
         img = self.vnc.screen.get_array()
         img = Image.fromarray(img)
         arr_img = self.preprocess(img)
-        return np.array([arr_img])
+        return np.array([arr_img]), img
 
     def on_frame(self):
-        state = self.render()
+        state, im = self.render()
         state_type = None
         if self.model:
-            state_type = self.action_names[np.argmax(self.model.predict(state))]
+            # print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
+            state_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
 
         if self.frame_callback:
-            self.frame_callback(state, self.frame_count, state_type, self.vnc)
+            self.frame_callback(state, im, self.frame_count, state_type, self.vnc)
 
         self.frame_count += 1
