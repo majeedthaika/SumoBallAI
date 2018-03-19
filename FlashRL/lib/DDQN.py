@@ -9,31 +9,7 @@ import json, os, errno
 import random
 from shutil import copyfile
 
-import threading
-import time
-import collections
-
 np.set_printoptions(threshold='nan')
-
-class ProducerConsumer(object):
-	def __init__(self, size):
-		self.buffer = collections.deque([], size)
-		self.mutex = threading.Lock()
-		self.notFull = threading.Semaphore(size)
-		self.notEmpty = threading.Semaphore(0)
-
-	def append(self, data):
-		self.notFull.acquire()
-		with self.mutex:
-			self.buffer.append(data)
-		self.notEmpty.release()
-
-	def take(self):
-		self.notEmpty.acquire()
-		with self.mutex:
-			data = self.buffer.popleft()
-		self.notFull.release()
-		return data
 
 class QNetwork(object):
 
@@ -202,11 +178,6 @@ class DQN_Agent():
 		self.batch_size = int(params['batch_size'])
 		self.burn_in_size = int(params['burn_in_size'])
 
-	def state_producer(self, state):
-		self.buffer.append(state)
-
-	def state_consumer(self):
-		return self.buffer.take()
 
 	"""
 	Return a action distribution based on given q_value
@@ -371,7 +342,7 @@ class DQN_Agent():
 	def burn_in_memory(self):
 		# Initialize your replay memory with a burn_in number of episodes / transitions.
 		print('burning in {} steps'.format(self.burn_in_size))
-		burn_state = [self.state_consumer()]
+		burn_state = [self.env.reset()]
 		for i in range(3):
 			burn_state.append(burn_state[0])
 		state = self.compress_state(burn_state)
@@ -398,9 +369,6 @@ class DQN_Agent():
 
 class DDQN:
 	def __init__(self, ingame_actions, models_path=None, load_path=None):
-		self.BUFFER_SIZE = 2
-		self.state_buffer = ProducerConsumer(self.BUFFER_SIZE)
-		self.action_buffer = ProducerConsumer(self.BUFFER_SIZE)
 
 		self.params = {
 			"epsilon_initial": 0.5,
@@ -427,20 +395,3 @@ class DDQN:
 
 		# You want to create an instance of the DQN_Agent class here, and then train / test it.
 		dqn_agent = DQN_Agent(self.params, ingame_actions, models_path, load_path, self.buffer)
-
-	def state_producer(self, state):
-		self.state_buffer.append(state)
-
-	def state_consumer(self):
-		return self.state_buffer.take()
-
-	def action_producer(self, state):
-		self.buffer.append(state)
-
-	def action_consumer(self):
-		return self.buffer.take()
-
-	def train(self):
-		t = threading.Thread(target=dqn_agent.train, args=(self.buffer,))
-		t.start()
-		t.join()
