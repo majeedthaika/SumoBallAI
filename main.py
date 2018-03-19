@@ -31,45 +31,46 @@ class RunSim:
 
 	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc):
 		# print(vnc.screen.cursor_loc)
+		frame_reward = 0
 
 		if not self.is_ingame:
 			if (screen_type == "load_screen"):
-				vnc.send_mouse("Left", (320, 415)) # click start
-				vnc.send_mouse("Left", (320, 415)) # need twice to actually press button
+				vnc.send_mouse("Left", (160, 207)) # click start
+				vnc.send_mouse("Left", (160, 207)) # need twice to actually press button
 			elif (screen_type == "start_screen"):
-				vnc.send_mouse("Left", (320, 415)) # click on screen
-				vnc.send_mouse("Left", (320, 415)) # need twice to actually press button
+				vnc.send_mouse("Left", (160, 207)) # click on screen
+				vnc.send_mouse("Left", (160, 207)) # need twice to actually press button
 			elif (screen_type == "selection_screen"):
 				if (self.player_types[0] <= self.set_player_types[0]):
-					vnc.send_mouse("Left", (80, 100)) # click red ball
+					vnc.send_mouse("Left", (40, 50)) # click red ball
 					self.player_types[0] = self.player_types[0] + 1
 				elif (self.player_types[1] <= self.set_player_types[1]):
-					vnc.send_mouse("Left", (200, 100)) # click blue ball
+					vnc.send_mouse("Left", (100, 50)) # click blue ball
 					self.player_types[1] = self.player_types[1] + 1
 				elif (self.player_types[2] <= self.set_player_types[2]):
-					vnc.send_mouse("Left", (80, 240)) # click green ball
+					vnc.send_mouse("Left", (40, 120)) # click green ball
 					self.player_types[2] = self.player_types[2] + 1
 				elif (self.player_types[3] <= self.set_player_types[3]):
-					vnc.send_mouse("Left", (200, 240)) # click yellow ball
+					vnc.send_mouse("Left", (100, 120)) # click yellow ball
 					self.player_types[3] = self.player_types[3] + 1
 				elif (self.player_types[4] <= self.set_player_types[4]):
-					vnc.send_mouse("Left", (80, 380)) # click pink ball
+					vnc.send_mouse("Left", (30, 190)) # click pink ball
 					self.player_types[4] = self.player_types[4] + 1
 				elif (self.player_types[5] <= self.set_player_types[5]):
-					vnc.send_mouse("Left", (200, 380)) # click purple ball
+					vnc.send_mouse("Left", (100, 190)) # click purple ball
 					self.player_types[5] = self.player_types[5] + 1
 				elif (self.is_deathmatch != self.set_deathmatch):
-					vnc.send_mouse("Left", (450, 40)) # click game type
-					vnc.send_mouse("Left", (450, 40)) # need twice to actually press button
+					vnc.send_mouse("Left", (225, 20)) # click game type
+					vnc.send_mouse("Left", (225, 20)) # need twice to actually press button
 					self.is_deathmatch = self.set_deathmatch
 				else:
-					vnc.send_mouse("Left", (590, 465)) # go to game
-					vnc.send_mouse("Left", (590, 465)) # need twice to actually press button
+					vnc.send_mouse("Left", (295, 232)) # go to game
+					vnc.send_mouse("Left", (295, 232)) # need twice to actually press button
 					self.is_ingame = True
 			else:
 				pass # in game
 
-		return self.is_ingame
+		return self.is_ingame, frame_reward
 
 
 RunSim(set_player_types=["Player1", "CPU1", "None", "None", "None", "None"], set_deathmatch=False)

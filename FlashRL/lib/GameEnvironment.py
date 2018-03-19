@@ -15,6 +15,6 @@ class GameEnvironment(threading.Thread):
 
     def vnc(self, vnc_display):
         os.environ["DISPLAY"] = vnc_display
-        with Display(backend='xvnc', rfbport=5902, size=(640, 480)) as disp:
-            with EasyProcess(' '.join(['gnash', os.path.join(self.env.path, self.env.swf), "--width", "640", "--height", "480","--render-mode", "1", "--hide-menubar"])) as proc:
+        with Display(backend='xvnc', rfbport=5902, size=(320, 240)) as disp:
+            with EasyProcess(' '.join(['gnash', os.path.join(self.env.path, self.env.swf), "--width", "320", "--height", "240","--render-mode", "1", "--hide-menubar"])) as proc:
                 proc.wait()

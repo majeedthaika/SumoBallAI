@@ -3,8 +3,48 @@ import numpy as np
 from PIL import Image
 import importlib.util
 from keras.models import load_model
-# from .DDQN import DDQN
+from .DDQN import DDQN
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
+class Replay_Memory():
+
+	def __init__(self, memory_size=50000):
+
+		# The memory essentially stores transitions recorder from the agent
+		# taking actions in the environment.
+
+		# randomly initialized agent. Memory size is the maximum size after which old elements in the memory are replaced.
+		# self.memory = deque(maxlen=memory_size)
+		self.tail = 0
+		self.memory_size = memory_size
+		self.memory = []
+
+	def make_transition(self, state, action, reward, next_state, is_terminal):
+		if type(reward) is not np.ndarray:
+			reward = np.array([reward])
+		if type(action) is not np.ndarray:
+			action = np.array([action])
+		if type(is_terminal) is not np.ndarray:
+			is_terminal = np.array([is_terminal])
+		return (state, action, reward, next_state, is_terminal)
+
+	def sample_batch(self, batch_size=32):
+		# This function returns a batch of randomly sampled transitions - i.e. state, action, reward, next state, terminal flag tuples.
+		# You will feed this to your model to train.
+		minibatch = random.sample(self.memory, batch_size)
+		return minibatch
+
+	def append(self, state, action, reward, next_state, is_terminal):
+		# Appends transition to the memory.
+		transition = self.make_transition(state, action, reward, next_state, is_terminal)
+		if len(self.memory) < self.memory_size:
+			self.memory.append(transition)
+		else:
+			self.memory[self.tail] = transition
+			self.tail = (self.tail + 1) % self.memory_size
+
+	def __len__(self):
+		return len(self.memory)
 
 class Environment:
 	def __init__(self, env_name, fps=10, frame_callback=None, grayscale=False, normalized=False):
@@ -25,7 +65,6 @@ class Environment:
 		self.env_config = self.load_config()
 		self.swf = self.env_config["swf"]
 		self.model_path = os.path.join(os.getcwd(), "train_screen_model", self.env_config["model"])
-		# self.model_path = os.path.join(self.path ,self.env_config["model"])
 		self.dataset = self.env_config["dataset"]
 		self.action_space = self.env_config["action_space"]
 		self.action_names = self.env_config["action_names"]
@@ -40,17 +79,29 @@ class Environment:
 			self.model = None
 
 		#in-game model
-		# self.ingame_actions = self.env_config["ingame_action_names"]
-		# self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
-		# self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
-		# self.replay_memory = []
-		# self.BUFFER_SIZE = 5
-		# self.state_buffer = []
+		self.ingame_actions = self.env_config["ingame_action_names"]
+		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
+		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
+		self.BUFFER_SIZE = 5
+		self.REPLAY_MAX_SIZE = 100000
+		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 
-		# self.ingame_model = 
-		# self.ddqn = DDQN(ingame_actions=self.ingame_actions, 
-		#                 models_path=self.ingame_models_path, 
-		#                 load_path=self.ingame_load_model_path)
+		self.prev_state_buffer = []
+		self.last_action = None
+		self.last_reward = None
+		self.state_buffer = []
+		self.is_terminal = False
+
+		try:
+			self.ingame_model = load_model(self.ingame_load_model_path)
+		except OSError as e:
+			print("No in-game model prediction!")
+			self.ingame_model = None
+
+		self.ddqn = DDQN(ingame_actions=self.ingame_actions, 
+		                models_path=self.ingame_models_path,
+		                config=self.env_config,
+		                saved_model=self.ingame_model)
 
 	def load_config(self):
 		spec = importlib.util.spec_from_file_location("module.define", os.path.join(self.path, "__init__.py"))
@@ -88,19 +139,29 @@ class Environment:
 		return np.concatenate(curr_state, axis=2)
 
 	def on_frame(self):
-		state, im = self.render()
+		state, img = self.render()
+
+		if self.last_action is not None:
+			self.state_buffer = self.state_buffer[1:]
+			self.state_buffer.append(np.expand_dims(state[0], axis=2))
+			self.replay_memory.append(self.prev_state_buffer, self.last_action, self.last_reward, 
+				self.state_buffer, self.is_ingame)
+
 		# print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
 		screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
 		
 		action_in_game = None
-		# if self.is_ingame:
-		# 	if len(self.state_buffer) < self.BUFFER_SIZE:
-		# 		self.state_buffer = []
-		# 		for i in range(self.BUFFER_SIZE):
-		# 			self.state_buffer.append(np.expand_dims(state[0], axis=2))
+		if self.is_ingame:
+			if len(self.state_buffer) < self.BUFFER_SIZE:
+				self.state_buffer = []
+				for i in range(self.BUFFER_SIZE):
+					self.state_buffer.append(np.expand_dims(state[0], axis=2))
 
-		# 	action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(self.state_buffer)[0])]
+			action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(self.state_buffer)[0])]
+			self.prev_state_buffer = self.state_buffer
+			self.last_action = action_in_game
 
-		self.is_ingame = self.frame_callback(state, im, self.frame_count, screen_type, action_in_game, self.vnc)
+		self.is_ingame, reward = self.frame_callback(state, img, self.frame_count, screen_type, action_in_game, self.vnc)
+		self.last_reward = reward
 
 		self.frame_count += 1

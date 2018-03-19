@@ -1,7 +1,8 @@
-import keras, tensorflow as tf, numpy as np, gym, sys, copy, argparse
+import keras, tensorflow as tf, numpy as np, sys, copy, argparse
 from keras import backend as K
-from keras.layers import Input, Dense, Add, Subtract, Average, RepeatVector, Lambda, Activation, Conv2D
+from keras.layers import Input, Add, Subtract, Average, RepeatVector, Lambda, Activation, Conv2D
 from keras.backend import mean, update_sub, ones, shape, sum, expand_dims
+from keras.layers.core import Dense, Activation, Flatten
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from collections import deque
@@ -17,7 +18,7 @@ class QNetwork(object):
 	# The network should take in state of the world as an input,
 	# and output Q values of the actions available to the agent as the output.
 
-	def __init__(self, state_size, action_size, batch_size, lr=0.001, gamma=0.99):
+	def __init__(self, state_size, action_size, batch_size, lr=0.001, gamma=0.99, saved_model=None):
 		self.state_size = state_size
 		self.action_size = action_size
 		self.lr = lr
@@ -90,9 +91,9 @@ class DuelingDeepQNetwork(QNetwork):
 		a1 = Dense(512, activation = 'relu')(f1)
 		advFunc = Dense(self.action_size, activation = 'relu')(a1)
 		advFuncMean = Lambda(lambda x: mean(x, axis=1))(advFunc)
-		advFuncOut = Lambda(lambda (x, y): x - expand_dims(y, axis=1))([advFunc, advFuncMean])
+		advFuncOut = Lambda(lambda x: x[0] - expand_dims(x[1], axis=1))([advFunc, advFuncMean])
 
-		merged = Lambda(lambda (x, y): x + y)([valFunc, advFuncOut])
+		merged = Lambda(lambda x: x[0] + x[1])([valFunc, advFuncOut])
 
 		model = Model(inputs=inputs, outputs=merged)
 		optimizer = keras.optimizers.Adam(lr=self.lr)
@@ -100,40 +101,10 @@ class DuelingDeepQNetwork(QNetwork):
 			  loss='mean_squared_error',
 			  metrics=['accuracy'])
 
-		self.model = model
-
-class Replay_Memory():
-
-	def __init__(self, memory_size=50000):
-
-		# The memory essentially stores transitions recorder from the agent
-		# taking actions in the environment.
-
-		# randomly initialized agent. Memory size is the maximum size after which old elements in the memory are replaced.
-		# self.memory = deque(maxlen=memory_size)
-		self.tail = 0
-		self.memory_size = memory_size
-		self.memory = []
-
-
-	def sample_batch(self, batch_size=32):
-		# This function returns a batch of randomly sampled transitions - i.e. state, action, reward, next state, terminal flag tuples.
-		# You will feed this to your model to train.
-		minibatch = random.sample(self.memory, batch_size)
-		return minibatch
-
-	def append(self, transition):
-		# Appends transition to the memory.
-		# self.memory.append(transition)
-		if len(self.memory) < self.memory_size:
-			self.memory.append(transition)
+		if kwargs['saved_model'] is not None:
+			self.model = kwargs['saved_model']
 		else:
-			self.memory[self.tail] = transition
-			self.tail = (self.tail + 1) % self.memory_size
-
-	def __len__(self):
-		return len(self.memory)
-
+			self.model = model
 
 class DQN_Agent():
 
@@ -146,10 +117,8 @@ class DQN_Agent():
 	# (4) Create a function to test the Q Network's performance on the environment.
 	# (5) Create a function for Experience Replay.
 
-	def __init__(self, params, ingame_actions, models_path, load_path, buffer):
-		self.buffer = buffer
+	def __init__(self, params, ingame_actions, models_path, config, saved_model=None):
 
-		# monitor_env = gym.wrappers.Monitor(self.env, '.', force=True)
 		self.action_space = np.arange(len(ingame_actions))
 		self.action_size = len(ingame_actions)
 		self.state_size = (84, 84, 4)
@@ -157,7 +126,8 @@ class DQN_Agent():
 
 		# set up the q network
 		self.q_network = DuelingDeepQNetwork(self.state_size, self.action_size, 
-											params['batch_size'], lr=self.lr)
+											params['batch_size'], lr=self.lr,
+											gamma=params['gamma'], saved_model=saved_model)
 
 		# policy is a list of length nA, with the probability of action
 		# for each A
@@ -165,7 +135,7 @@ class DQN_Agent():
 		self.epsilon_decay = float(params['epsilon_decay'])
 		self.epsilon_initial = float(params['epsilon_initial'])
 		self.epsilon_final = float(params['epsilon_final'])
-		# self.epsilon_interval = float(params['epsilon_interval'])
+		self.epsilon_interval = float(params['epsilon_interval'])
 		self.gamma = float(params['gamma'])
 
 		# training parameters
@@ -176,8 +146,6 @@ class DQN_Agent():
 		# set up memory
 		self.memory = Replay_Memory(int(params['replay_memory_size']))
 		self.batch_size = int(params['batch_size'])
-		self.burn_in_size = int(params['burn_in_size'])
-
 
 	"""
 	Return a action distribution based on given q_value
@@ -222,9 +190,9 @@ class DQN_Agent():
 				if self.epsilon <= self.epsilon_final:
 					return self.epsilon_final
 				retval = self.epsilon * self.epsilon_decay
-		# elif step == 'iterations':
-		# 	if strategy == 'linear':
-		# 		retval = max(self.epsilon_initial - iterations * (self.epsilon_initial - self.epsilon_final) / self.epsilon_interval, self.epsilon_final)
+		else:
+			if strategy == 'linear':
+				retval = max(self.epsilon_initial - iterations * (self.epsilon_initial - self.epsilon_final) / self.epsilon_interval, self.epsilon_final)
 		return retval
 
 
@@ -236,11 +204,6 @@ class DQN_Agent():
 		if type(is_terminal) is not np.ndarray:
 			is_terminal = np.array([is_terminal])
 		return (state, action, reward, next_state, is_terminal)
-
-	# def convert_to_grayscale(self, image):
-	# 	resized_image = cv2.resize(image, (84, 84))
-	# 	gray_image = cv2.cvtColor(resized_image, cv2.COLOR_RGB2GRAY)
-	# 	return gray_image	
 
 	def compress_state(self, curr_state):
 		return np.concatenate(curr_state, axis=2)
@@ -368,8 +331,8 @@ class DQN_Agent():
 				state = next_state
 
 class DDQN:
-	def __init__(self, ingame_actions, models_path=None, load_path=None):
-
+	def __init__(self, ingame_actions, models_path=None, config=None, saved_model=None):
+		self.config = config
 		self.params = {
 			"epsilon_initial": 0.5,
 			"epsilon_final": 0.05,
@@ -383,15 +346,18 @@ class DDQN:
 			"batch_size": 32,
 			"replay_memory_size": 1000000,
 			"burn_in_size": 10000,
+			"gpu": False,
 		}
 		
-		# Setting the session to allow growth, so it doesn't allocate all GPU memory.
-		gpu_ops = tf.GPUOptions(allow_growth=True)
-		config = tf.ConfigProto(gpu_options=gpu_ops)
-		sess = tf.Session(config=config)
+		if self.params["gpu"]:
+			# Setting the session to allow growth, so it doesn't allocate all GPU memory.
+			gpu_ops = tf.GPUOptions(allow_growth=True)
+			config = tf.ConfigProto(gpu_options=gpu_ops)
+			sess = tf.Session(config=config)
 
-		# Setting this as the default tensorflow session.
-		keras.backend.tensorflow_backend.set_session(sess)
+			# Setting this as the default tensorflow session.
+			keras.backend.tensorflow_backend.set_session(sess)
 
 		# You want to create an instance of the DQN_Agent class here, and then train / test it.
-		dqn_agent = DQN_Agent(self.params, ingame_actions, models_path, load_path, self.buffer)
+		self.dqn_agent = DQN_Agent(self.params, ingame_actions, models_path, self.config, saved_model)
+
