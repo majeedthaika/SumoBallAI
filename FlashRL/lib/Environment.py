@@ -50,7 +50,6 @@ class Environment:
 		self.last_action = None
 		self.last_reward = None
 		self.state_buffer = []
-		self.is_terminal = False
 
 		try:
 			self.ingame_model = load_model(self.ingame_load_model_path)
@@ -106,6 +105,14 @@ class Environment:
 			self.state_buffer.append(np.expand_dims(state[0], axis=2))
 			self.replay_memory.append(self.prev_state_buffer, self.last_action, self.last_reward, 
 				self.state_buffer, not self.is_ingame)
+
+			if not self.is_ingame:
+				self.prev_state_buffer = []
+				self.last_action = None
+				self.last_reward = None
+				self.state_buffer = []
+
+				self.ingame_model = self.ddqn.dqn_agent.train(self.replay_memory)
 
 		# print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
 		screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
