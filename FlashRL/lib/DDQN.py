@@ -12,6 +12,46 @@ from shutil import copyfile
 
 np.set_printoptions(threshold='nan')
 
+class Replay_Memory():
+
+	def __init__(self, memory_size=50000):
+
+		# The memory essentially stores transitions recorder from the agent
+		# taking actions in the environment.
+
+		# randomly initialized agent. Memory size is the maximum size after which old elements in the memory are replaced.
+		# self.memory = deque(maxlen=memory_size)
+		self.tail = 0
+		self.memory_size = memory_size
+		self.memory = []
+
+	def make_transition(self, state, action, reward, next_state, is_terminal):
+		if type(reward) is not np.ndarray:
+			reward = np.array([reward])
+		if type(action) is not np.ndarray:
+			action = np.array([action])
+		if type(is_terminal) is not np.ndarray:
+			is_terminal = np.array([is_terminal])
+		return (state, action, reward, next_state, is_terminal)
+
+	def sample_batch(self, batch_size=32):
+		# This function returns a batch of randomly sampled transitions - i.e. state, action, reward, next state, terminal flag tuples.
+		# You will feed this to your model to train.
+		minibatch = random.sample(self.memory, batch_size)
+		return minibatch
+
+	def append(self, state, action, reward, next_state, is_terminal):
+		# Appends transition to the memory.
+		transition = self.make_transition(state, action, reward, next_state, is_terminal)
+		if len(self.memory) < self.memory_size:
+			self.memory.append(transition)
+		else:
+			self.memory[self.tail] = transition
+			self.tail = (self.tail + 1) % self.memory_size
+
+	def __len__(self):
+		return len(self.memory)
+
 class QNetwork(object):
 
 	# This class essentially defines the network architecture.

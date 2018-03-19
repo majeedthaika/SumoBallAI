@@ -3,48 +3,8 @@ import numpy as np
 from PIL import Image
 import importlib.util
 from keras.models import load_model
-from .DDQN import DDQN
+from .DDQN import DDQN, Replay_Memory
 dir_path = os.path.dirname(os.path.realpath(__file__))
-
-class Replay_Memory():
-
-	def __init__(self, memory_size=50000):
-
-		# The memory essentially stores transitions recorder from the agent
-		# taking actions in the environment.
-
-		# randomly initialized agent. Memory size is the maximum size after which old elements in the memory are replaced.
-		# self.memory = deque(maxlen=memory_size)
-		self.tail = 0
-		self.memory_size = memory_size
-		self.memory = []
-
-	def make_transition(self, state, action, reward, next_state, is_terminal):
-		if type(reward) is not np.ndarray:
-			reward = np.array([reward])
-		if type(action) is not np.ndarray:
-			action = np.array([action])
-		if type(is_terminal) is not np.ndarray:
-			is_terminal = np.array([is_terminal])
-		return (state, action, reward, next_state, is_terminal)
-
-	def sample_batch(self, batch_size=32):
-		# This function returns a batch of randomly sampled transitions - i.e. state, action, reward, next state, terminal flag tuples.
-		# You will feed this to your model to train.
-		minibatch = random.sample(self.memory, batch_size)
-		return minibatch
-
-	def append(self, state, action, reward, next_state, is_terminal):
-		# Appends transition to the memory.
-		transition = self.make_transition(state, action, reward, next_state, is_terminal)
-		if len(self.memory) < self.memory_size:
-			self.memory.append(transition)
-		else:
-			self.memory[self.tail] = transition
-			self.tail = (self.tail + 1) % self.memory_size
-
-	def __len__(self):
-		return len(self.memory)
 
 class Environment:
 	def __init__(self, env_name, fps=10, frame_callback=None, grayscale=False, normalized=False):
@@ -145,7 +105,7 @@ class Environment:
 			self.state_buffer = self.state_buffer[1:]
 			self.state_buffer.append(np.expand_dims(state[0], axis=2))
 			self.replay_memory.append(self.prev_state_buffer, self.last_action, self.last_reward, 
-				self.state_buffer, self.is_ingame)
+				self.state_buffer, not self.is_ingame)
 
 		# print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
 		screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
