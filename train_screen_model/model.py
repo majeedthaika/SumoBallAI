@@ -73,7 +73,7 @@ class Model:
             X,
             Y,
             batch_size=8,
-            epochs=50,
+            epochs=30,
             verbose=1,
             callbacks=[self.checkpoint_cb],
             validation_split=0.4

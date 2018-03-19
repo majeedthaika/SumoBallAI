@@ -128,7 +128,6 @@ class Environment:
 			self.prev_state_buffer = self.state_buffer
 			self.last_action = action_in_game
 
-		self.is_ingame, reward = self.frame_callback(state, img, self.frame_count, screen_type, action_in_game, self.vnc)
-		self.last_reward = reward
+		self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, action_in_game, self.vnc)
 
 		self.frame_count += 1
