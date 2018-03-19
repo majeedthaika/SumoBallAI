@@ -26,13 +26,14 @@ class RunSim:
 		self.is_deathmatch = False
 
 		self.is_ingame = False
+		self.win_screens = {"pink_wins", "purple_wins", "blue_wins", "red_wins", "yellow_wins", "green_wins"}
 
 		Game("sumoball", fps=10, frame_callback=self.on_frame, grayscale=True, normalized=True)
 
 	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc):
 		# print(vnc.screen.cursor_loc)
-		frame_reward = 0
 
+		frame_reward = 0
 		if not self.is_ingame:
 			if (screen_type == "load_screen"):
 				vnc.send_mouse("Left", (160, 207)) # click start
@@ -67,8 +68,54 @@ class RunSim:
 					vnc.send_mouse("Left", (295, 232)) # go to game
 					vnc.send_mouse("Left", (295, 232)) # need twice to actually press button
 					self.is_ingame = True
+			elif (screen_type in win_screens):
+				vnc.send_key("keypad enter", duration=0.1) #restart game
+				self.is_ingame = True
 			else:
-				pass # in game
+				self.is_ingame = True
+		else:
+			# in game
+			if (action_in_game == "UP"):
+				vnc.send_key("up arrow", duration=0.1)
+			elif (action_in_game == "UP_RIGHT"):
+				vnc.send_key("up arrow", duration=0.1)
+				vnc.send_key("right arrow", duration=0.1)
+			elif (action_in_game == "RIGHT"):
+				vnc.send_key("right arrow", duration=0.1)
+			elif (action_in_game == "DOWN_RIGHT"):
+				vnc.send_key("down arrow", duration=0.1)
+				vnc.send_key("right arrow", duration=0.1)
+			elif (action_in_game == "DOWN"):
+				vnc.send_key("down arrow", duration=0.1)
+			elif (action_in_game == "DOWN_LEFT"):
+				vnc.send_key("down arrow", duration=0.1)
+				vnc.send_key("left arrow", duration=0.1)
+			elif (action_in_game == "LEFT"):
+				vnc.send_key("left arrow", duration=0.1)
+			else:
+				vnc.send_key("up arrow", duration=0.1)
+				vnc.send_key("left arrow", duration=0.1)
+
+			if (screen_type == "red_wins"):
+				frame_reward = 50
+				self.is_ingame = False
+			elif  (screen_type == "blue_wins"):
+				frame_reward = -50
+				self.is_ingame = False
+			elif  (screen_type == "green_wins"):
+				frame_reward = -50
+				self.is_ingame = False
+			elif  (screen_type == "yellow_wins")
+				frame_reward = -50
+				self.is_ingame = False
+			elif  (screen_type == "pink_wins"):
+				frame_reward = -50
+				self.is_ingame = False
+			elif  (screen_type == "purple_wins"):
+				frame_reward = -50
+				self.is_ingame = False
+			else:
+				frame_reward = 1
 
 		return self.is_ingame, frame_reward
 
