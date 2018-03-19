@@ -1,0 +1,8 @@
+tensorflow
+keras
+pyvirtualdisplay
+easyprocess
+numpy
+pygame
+twisted
+h5py
