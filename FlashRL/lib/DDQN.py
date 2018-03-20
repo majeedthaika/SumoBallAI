@@ -126,15 +126,18 @@ class DuelingDeepQNetwork(QNetwork):
 		c3 = Conv2D(64, (3, 3), activation = 'relu')(c2)
 		f1 = Flatten()(c3)
 
-		v1 = Dense(512, activation = 'relu')(f1)
-		valFunc = Dense(1, activation = 'relu')(v1)
+		d1 = Dense(512, activation = 'relu')(f1)
+		merged = Dense(self.action_size)(d1)
 
-		a1 = Dense(512, activation = 'relu')(f1)
-		advFunc = Dense(self.action_size, activation = 'relu')(a1)
-		advFuncMean = Lambda(lambda x: mean(x, axis=1))(advFunc)
-		advFuncOut = Lambda(lambda x: x[0] - expand_dims(x[1], axis=1))([advFunc, advFuncMean])
+		# v1 = Dense(512, activation = 'relu')(f1)
+		# valFunc = Dense(1, activation = 'relu')(v1)
 
-		merged = Lambda(lambda x: x[0] + x[1])([valFunc, advFuncOut])
+		# a1 = Dense(512, activation = 'relu')(f1)
+		# advFunc = Dense(self.action_size, activation = 'relu')(a1)
+		# advFuncMean = Lambda(lambda x: mean(x, axis=1))(advFunc)
+		# advFuncOut = Lambda(lambda x: x[0] - expand_dims(x[1], axis=1))([advFunc, advFuncMean])
+
+		# merged = Lambda(lambda x: x[0] + x[1])([valFunc, advFuncOut])
 
 		model = Model(inputs=inputs, outputs=merged)
 		optimizer = keras.optimizers.Adam(lr=self.lr)

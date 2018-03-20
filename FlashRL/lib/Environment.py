@@ -6,6 +6,19 @@ from keras.models import load_model
 from .DDQN import DDQN, Replay_Memory
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+import keras, tensorflow as tf, numpy as np, sys, copy, argparse
+from keras import backend as K
+from keras.layers import Input, Add, Subtract, Average, RepeatVector, Lambda, Activation, Conv2D
+from keras.backend import mean, update_sub, ones, shape, sum, expand_dims
+from keras.layers.core import Dense, Activation, Flatten
+from keras.models import Sequential, Model
+from keras.optimizers import Adam
+from collections import deque
+import json, os, errno
+import random
+from shutil import copyfile
+import pdb
+
 class Environment:
 	def __init__(self, env_name, fps=10, frame_callback=None, grayscale=False, normalized=False):
 		self.fps = fps
@@ -64,6 +77,7 @@ class Environment:
 		                saved_model=self.ingame_model)
 
 		self.ingame_model = self.ddqn.dqn_agent.q_network.model
+		self.ingame_model._make_predict_function()
 
 	def load_config(self):
 		spec = importlib.util.spec_from_file_location("module.define", os.path.join(self.path, "__init__.py"))
@@ -131,11 +145,6 @@ class Environment:
 					self.state_buffer.append(np.expand_dims(state[0], axis=2))
 
 			inp = np.expand_dims(self.compress_state(self.state_buffer), axis=0)
-			print(self.ingame_model.summary())
-			print(inp.shape)
-			np.save("test.npy", inp)
-			print(self.ingame_model.predict(inp))
-
 			action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(
 				np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])]
 			self.prev_state_buffer = self.state_buffer
