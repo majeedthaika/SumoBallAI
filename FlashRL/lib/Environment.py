@@ -133,10 +133,11 @@ class Environment:
 			inp = np.expand_dims(self.compress_state(self.state_buffer), axis=0)
 			print(self.ingame_model.summary())
 			print(inp.shape)
-			print(self.ingame_model.predict(inp)[0].shape)
+			np.save("test.npy", inp)
+			print(self.ingame_model.predict(inp))
 
 			action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(
-				np.array([self.compress_state(self.state_buffer)])), batch_size=1)[0]]
+				np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])]
 			self.prev_state_buffer = self.state_buffer
 			self.last_action = action_in_game
 
