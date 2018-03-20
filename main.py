@@ -41,6 +41,7 @@ class RunSim:
 
 		frame_reward = 0
 		if not run_episode:
+			self.is_ingame = False
 			return self.is_ingame, frame_reward
 
 		if not self.is_ingame:

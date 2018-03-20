@@ -3,7 +3,7 @@ from keras import backend as K
 from keras.layers import Input, Add, Subtract, Average, RepeatVector, Lambda, Activation, Conv2D
 from keras.backend import mean, update_sub, ones, shape, sum, expand_dims
 from keras.layers.core import Dense, Activation, Flatten
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, save_model, load_model
 from keras.optimizers import Adam
 from collections import deque
 import json, os, errno
@@ -107,7 +107,7 @@ class QNetwork(object):
 		print(self.model.summary())
 		print(s.shape)
 		print(target_q_s.shape)
-		pdb.set_trace()
+		# pdb.set_trace()
 		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)
 
 	def save_model_weights(self, path):
@@ -120,7 +120,7 @@ class QNetwork(object):
 		self.model.save(path)
 
 	def load_model(self, path):
-		self.model = load_model('path')
+		self.model = load_model(path)
 
 class DuelingDeepQNetwork(QNetwork):
 	def __init__(self, *args, **kwargs):
@@ -174,6 +174,7 @@ class DQN_Agent():
 		self.state_size = (84, 84, 4)
 		self.lr = float(params['learning_rate'])
 		self.filename = "sumoball"
+		self.models_path = models_path
 
 		# set up the q network
 		self.q_network = DuelingDeepQNetwork(self.state_size, self.action_size, 
@@ -261,19 +262,18 @@ class DQN_Agent():
 		return np.concatenate(curr_state, axis=2)
 
 	def train(self, replay_memory, episode_number):
+		try:
+			self.q_network.load_model(os.path.join(self.models_path, "checkpoint_"+str(episode_number-1)+".h5"))
+		except:
+			self.q_network.load_model(os.path.join(self.models_path, "checkpoint_0.h5"))
+
 		for i in range(self.train_iterations):
 			print("batch #"+str(i))
 			minibatch = replay_memory.sample_batch(self.batch_size)
 			self.q_network.train_step(minibatch)
 		self.epsilon = self.annealing(episode_number, iterations)
-		if episode_number % 1000 == 0:
-			#avg_test_reward = self.test(20)
-			#summary_line = "Episode: {}\nPrevious episode's reward: {}\nAverage reward for last 100 episodes: {}\nAverage test reward for 20 episodes: {}\nEpsilon: {}".format(episode, episode_reward, sum_reward/100, avg_test_reward, self.epsilon)
-			#print (summary_line)
-			#sum_reward = 0
 
-			ckpt = self.filename + '-' + str(int(episode/1000))
-			self.q_network.save_model_weights(ckpt)
+		self.q_network.save_model(os.path.join(self.models_path, "checkpoint_"+str(episode_number)+".h5"))
 
 	def test(self, test_num_episode, model_file=None):
 		# Evaluate the performance of your agent over 100 episodes, by calculating cummulative rewards for the 100 episodes.
