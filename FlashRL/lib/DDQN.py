@@ -53,43 +53,108 @@ class Replay_Memory():
 	def __len__(self):
 		return len(self.memory)
 
-class QNetwork(object):
+class DQN_Model:
+	def __init__(self, action_size, model_path, predict=True, filename=None, lr =  0.0001,  gamma = 1,):
+		self.action_size = action_size
+		self.state_size = (84, 84, 4)
+		self.model_path = model_path
+		if filename:
+			self.model = self.load_model(os.path.join(model_path, filename))
+		else:
+			inputs = Input(shape = (84, 84, 4))
+			c1 = Conv2D(32, (8, 8), strides=(4, 4), activation='relu')(inputs)
+			c2 = Conv2D(64, (4, 4), strides=(2, 2), activation='relu')(c1)
+			c3 = Conv2D(64, (3, 3), activation = 'relu')(c2)
+			f1 = Flatten()(c3)
 
-	# This class essentially defines the network architecture.
-	# The network should take in state of the world as an input,
-	# and output Q values of the actions available to the agent as the output.
+			d1 = Dense(512, activation = 'relu')(f1)
+			merged = Dense(self.action_size)(d1)
 
-	def __init__(self, state_size, action_size, batch_size, lr=0.001, gamma=0.99, saved_model=None):
-		self.state_size = state_size
+			# v1 = Dense(512, activation = 'relu')(f1)
+			# valFunc = Dense(1, activation = 'relu')(v1)
+
+			# a1 = Densie(512, activation = 'relu')(f1)
+			# advFunc = Dense(self.action_size, activation = 'relu')(a1)
+			# advFuncMean = Lambda(lambda x: mean(x, axis=1))(advFunc)
+			# advFuncOut = Lambda(lambda x: x[0] - expand_dims(x[1], axis=1))([advFunc, advFuncMean])
+
+			# merged = Lambda(lambda x: x[0] + x[1])([valFunc, advFuncOut])
+
+			self.model = Model(inputs=inputs, outputs=merged)
+			optimizer = keras.optimizers.Adam(lr=lr)
+			self.model.compile(optimizer=optimizer,
+				loss='mean_squared_error',
+				metrics=['accuracy'])
+		if predict:
+			self.model._make_predict_function()
+
+	def predict(self, state, batch_size=None):
+		if batch_size:
+			return self.model.predict(state)
+		else:
+			return self.model.predict(state, batch_size)
+
+	def get_model(self):
+		return self.model
+
+	def save_model(self, path):
+		self.model.save(path)
+
+	def load_model(self, path):
+		try:
+			self.model = load_model(path)
+		except:
+			self.model = load_model(os.path.join(self.model_path, "checkpoint_0.h5"))
+
+class Trainer:
+	def __init__(self, action_size, model_path, episode_number, batch_size=32, lr=0.0001, gamma=1):
+		params = {
+			"epsilon_initial": 0.5,
+			"epsilon_final": 0.05,
+			"epsilon": 0.5,
+			"epsilon_decay": .995,
+			"epsilon_interval": 100000,
+			"gamma": 1,
+			"train_iterations": 30,
+			"num_iterations": 200,
+			"num_episodes": 3000,
+			"learning_rate": 0.0001,
+			"batch_size": 32,
+			"replay_memory_size": 1000000,
+			"burn_in_size": 10000,
+			"gpu": False,
+		}
+		self.state_size = (84, 84, 4)
+		self.lr = float(params['learning_rate'])
+
 		self.action_size = action_size
 		self.lr = lr
 		self.gamma = gamma
 		self.input_shape = (self.state_size,)
 		self.batch_size = batch_size
+		self.episode_number = episode_number
+		# pdb.set_trace()
+		self.Model_class = DQN_Model(action_size, model_path, 
+			"checkpoint_"+str(self.episode_number)+".h5", False)
+		self.model = self.Model_class.get_model()
+		self.epsilon = float(params['epsilon'])
+		self.epsilon_decay = float(params['epsilon_decay'])
+		self.epsilon_initial = float(params['epsilon_initial'])
+		self.epsilon_final = float(params['epsilon_final'])
+		self.epsilon_interval = float(params['epsilon_interval'])
+		self.gamma = float(params['gamma'])
 
-	"""
-	get the q values of all possible actions in given state
-	"""
-	def evaluate(self, state):
-		if state.shape[0] == self.batch_size:
-			batch_size = state.shape[0]
-		else:
-			state = np.expand_dims(state, 0)
-			batch_size = 1
-		qs = self.model.predict(state, batch_size=batch_size, verbose=0)
-		return qs  # returns q values
+		# training parameters
+		self.num_iterations = int(params['num_iterations'])
+		self.num_episodes = int(params['num_episodes'])
+		self.learning_rate = float(params['learning_rate'])
+		self.train_iterations = int(params['train_iterations'])
 
-	"""
-	Train a step, with minibatch extracted outside
-	Each item in minibatch should be a transaction, i.e.
-	(state, action, reward, next_state, done) tuple
-	done is 1 if terminal, or 0 if not
-	"""
 	def train_step(self, minibatch):
+		pdb.set_trace()
 		batch_size = len(minibatch)
 		# SGD on minibatch
-		s, actions, rewards, ss, dones = \
-				[np.array(x) for x in zip(*minibatch)]
+		s, actions, rewards, ss, dones = [np.array(x) for x in zip(*minibatch)]
 
 		qmax_ss = np.amax(self.model.predict(ss), axis=1, keepdims=1)
 
@@ -109,132 +174,7 @@ class QNetwork(object):
 		print(target_q_s.shape)
 		# pdb.set_trace()
 		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)
-
-	def save_model_weights(self, path):
-		self.model.save_weights(path)
-
-	def load_model_weights(self, path):
-		self.model.load_weights(path)
-
-	def save_model(self, path):
-		self.model.save(path)
-
-	def load_model(self, path):
-		self.model = load_model(path)
-
-class DuelingDeepQNetwork(QNetwork):
-	def __init__(self, *args, **kwargs):
-		super(DuelingDeepQNetwork, self).__init__(*args, **kwargs)
-
-		inputs = Input(shape = (84, 84, 4))
-		c1 = Conv2D(32, (8, 8), strides=(4, 4), activation='relu')(inputs)
-		c2 = Conv2D(64, (4, 4), strides=(2, 2), activation='relu')(c1)
-		c3 = Conv2D(64, (3, 3), activation = 'relu')(c2)
-		f1 = Flatten()(c3)
-
-		d1 = Dense(512, activation = 'relu')(f1)
-		merged = Dense(self.action_size)(d1)
-
-		# v1 = Dense(512, activation = 'relu')(f1)
-		# valFunc = Dense(1, activation = 'relu')(v1)
-
-		# a1 = Dense(512, activation = 'relu')(f1)
-		# advFunc = Dense(self.action_size, activation = 'relu')(a1)
-		# advFuncMean = Lambda(lambda x: mean(x, axis=1))(advFunc)
-		# advFuncOut = Lambda(lambda x: x[0] - expand_dims(x[1], axis=1))([advFunc, advFuncMean])
-
-		# merged = Lambda(lambda x: x[0] + x[1])([valFunc, advFuncOut])
-
-		model = Model(inputs=inputs, outputs=merged)
-		optimizer = keras.optimizers.Adam(lr=self.lr)
-		model.compile(optimizer=optimizer,
-			  loss='mean_squared_error',
-			  metrics=['accuracy'])
-
-		if kwargs['saved_model']:
-			self.model = kwargs['saved_model']
-		else:
-			self.model = model
-
-class DQN_Agent():
-
-	# In this class, we will implement functions to do the following.
-	# (1) Create an instance of the Q Network class.
-	# (2) Create a function that constructs a policy from the Q values predicted by the Q Network.
-	#        (a) Epsilon Greedy Policy.
-	#         (b) Greedy Policy.
-	# (3) Create a function to train the Q Network, by interacting with the environment.
-	# (4) Create a function to test the Q Network's performance on the environment.
-	# (5) Create a function for Experience Replay.
-
-	def __init__(self, params, ingame_actions, models_path, config, saved_model=None):
-
-		self.action_space = np.arange(len(ingame_actions))
-		self.action_size = len(ingame_actions)
-		self.state_size = (84, 84, 4)
-		self.lr = float(params['learning_rate'])
-		self.filename = "sumoball"
-		self.models_path = models_path
-
-		# set up the q network
-		self.q_network = DuelingDeepQNetwork(self.state_size, self.action_size, 
-											params['batch_size'], lr=self.lr,
-											gamma=params['gamma'], saved_model=saved_model)
-
-		# policy is a list of length nA, with the probability of action
-		# for each A
-		self.epsilon = float(params['epsilon'])
-		self.epsilon_decay = float(params['epsilon_decay'])
-		self.epsilon_initial = float(params['epsilon_initial'])
-		self.epsilon_final = float(params['epsilon_final'])
-		self.epsilon_interval = float(params['epsilon_interval'])
-		self.gamma = float(params['gamma'])
-
-		# training parameters
-		self.num_iterations = int(params['num_iterations'])
-		self.num_episodes = int(params['num_episodes'])
-		self.learning_rate = float(params['learning_rate'])
-		self.train_iterations = int(params['train_iterations'])
-
-		# set up memory
-		self.memory = Replay_Memory(int(params['replay_memory_size']))
-		self.batch_size = int(params['batch_size'])
-
-	"""
-	Return a action distribution based on given q_value
-	"""
-	def epsilon_greedy_policy(self, q_values):
-		# Creating epsilon greedy probabilities to sample from.
-		# Assuming q values is a list of length nA and is indexed by actions
-		policy = np.ones(self.action_size) * self.epsilon/self.action_size
-		best_action = np.argmax(q_values) #.index(max_q_value)
-		policy[best_action] += 1 - self.epsilon
-
-		return policy
-
-	"""
-	Return a one-hot action distribution based on given q_value
-	"""
-	def greedy_policy(self, q_values):
-		# Creating greedy policy for test time.
-		# Assuming q values is a list of length nA and is indexed by actions
-		policy = np.zeros(self.action_size)
-		best_action = np.argmax(q_values)# q_values.index(max_q_value)
-		policy[best_action] = 1
-
-		return policy
-
-	def sample_action(self, state, policy_type):
-		q_values = self.q_network.evaluate(state)
-
-		if policy_type == 'epsilon_greedy':
-			policy = self.epsilon_greedy_policy(q_values)
-		elif policy_type == 'greedy':
-			policy = self.greedy_policy(q_values)
-
-		action = np.random.choice(self.action_size, p = policy)
-		return action
-
+	
 	def annealing(self, num_episode, iterations, strategy='linear', step='episodes'):
 		if step == 'episodes':
 			if strategy == 'linear':
@@ -247,135 +187,16 @@ class DQN_Agent():
 			if strategy == 'linear':
 				retval = max(self.epsilon_initial - iterations * (self.epsilon_initial - self.epsilon_final) / self.epsilon_interval, self.epsilon_final)
 		return retval
-
-
-	def make_transition(self, state, action, reward, next_state, is_terminal):
-		if type(reward) is not np.ndarray:
-			reward = np.array([reward])
-		if type(action) is not np.ndarray:
-			action = np.array([action])
-		if type(is_terminal) is not np.ndarray:
-			is_terminal = np.array([is_terminal])
-		return (state, action, reward, next_state, is_terminal)
-
-	def compress_state(self, curr_state):
-		return np.concatenate(curr_state, axis=2)
-
-	def train(self, replay_memory, episode_number):
-		try:
-			self.q_network.load_model(os.path.join(self.models_path, "checkpoint_"+str(episode_number-1)+".h5"))
-		except:
-			self.q_network.load_model(os.path.join(self.models_path, "checkpoint_0.h5"))
-
+	
+	def train(self, replay_memory):
 		for i in range(self.train_iterations):
 			print("batch #"+str(i))
 			minibatch = replay_memory.sample_batch(self.batch_size)
-			self.q_network.train_step(minibatch)
+			self.train_step(minibatch)
 		self.epsilon = self.annealing(episode_number, iterations)
-
-		self.q_network.save_model(os.path.join(self.models_path, "checkpoint_"+str(episode_number)+".h5"))
-
-	def test(self, test_num_episode, model_file=None):
-		# Evaluate the performance of your agent over 100 episodes, by calculating cummulative rewards for the 100 episodes.
-		# Here you need to interact with the environment, irrespective of whether you are using a memory.
+		self.model.save_model(os.path.join(self.model_path, 
+			"checkpoint_"+str(self.episode_number)+".h5"))
 
 
-		# print (self.deepQ)
-		sum_reward = 0
 
-		if model_file != None:
-			self.q_network.load_model_weights(model_file)
-
-		for episode in range(test_num_episode):
-			# state = self.env.reset()
-			test_state = [self.convert_to_grayscale(self.env.reset())]
-			for i in range(3):
-				test_state.append(self.convert_to_grayscale(self.env.step(0)[0]))
-			state = self.compress_state(test_state)
-			cummulative_reward = 0
-			# print (state)
-
-			for num_iter in xrange(1000):
-				if self.render == True:
-					self.env.render()
-
-				action = self.sample_action(state, 'greedy')
-
-				next_state, reward, done, info = self.env.step(action)
-
-				new_test_state = test_state[1:]
-				new_test_state.append(self.convert_to_grayscale(next_state))
-				
-				state = self.compress_state(new_test_state)
-				# cummulative_reward += self.gamma**num_iter * reward
-				# print (state, reward, done, info, cummulative_reward)
-
-				cummulative_reward += reward
-				if done == True:
-					# print ('break')
-					sum_reward += cummulative_reward
-					break
-
-		# print ()
-		return sum_reward/float(test_num_episode)
-
-	def burn_in_memory(self):
-		# Initialize your replay memory with a burn_in number of episodes / transitions.
-		print('burning in {} steps'.format(self.burn_in_size))
-		burn_state = [self.env.reset()]
-		for i in range(3):
-			burn_state.append(burn_state[0])
-		state = self.compress_state(burn_state)
-
-		for step in xrange(self.burn_in_size):
-			# take random action
-			action = self.action_space.sample()
-			next_state, reward, is_terminal, _ = self.env.step(action)
-
-			new_burn_state = burn_state[1:]
-			new_burn_state.append(self.convert_to_grayscale(next_state))
-
-			next_state = self.compress_state(new_burn_state)
-
-			transition = self.make_transition(state, action, reward, next_state, is_terminal)
-			self.memory.append(transition)
-			if is_terminal:
-				burn_state = [self.convert_to_grayscale(self.env.reset())]
-				for i in range(3):
-					burn_state.append(self.convert_to_grayscale(self.env.step(0)[0]))
-				state = self.compress_state(burn_state)
-			else:
-				state = next_state
-
-class DDQN:
-	def __init__(self, ingame_actions, models_path=None, config=None, saved_model=None):
-		self.config = config
-		self.params = {
-			"epsilon_initial": 0.5,
-			"epsilon_final": 0.05,
-			"epsilon": 0.5,
-			"epsilon_decay": .995,
-			"epsilon_interval": 100000,
-			"gamma": 0.5,
-			"train_iterations": 30,
-			"num_iterations": 200,
-			"num_episodes": 3000,
-			"learning_rate": 0.0001,
-			"batch_size": 32,
-			"replay_memory_size": 1000000,
-			"burn_in_size": 10000,
-			"gpu": False,
-		}
-		
-		if self.params["gpu"]:
-			# Setting the session to allow growth, so it doesn't allocate all GPU memory.
-			gpu_ops = tf.GPUOptions(allow_growth=True)
-			config = tf.ConfigProto(gpu_options=gpu_ops)
-			sess = tf.Session(config=config)
-
-			# Setting this as the default tensorflow session.
-			keras.backend.tensorflow_backend.set_session(sess)
-
-		# You want to create an instance of the DQN_Agent class here, and then train / test it.
-		self.dqn_agent = DQN_Agent(self.params, ingame_actions, models_path, self.config, saved_model)
 

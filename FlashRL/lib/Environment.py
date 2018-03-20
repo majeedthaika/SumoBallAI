@@ -3,21 +3,10 @@ import numpy as np
 from PIL import Image
 import importlib.util
 from keras.models import load_model
-from .DDQN import DDQN, Replay_Memory
+from .DDQN import Trainer, DQN_Model, Replay_Memory
 dir_path = os.path.dirname(os.path.realpath(__file__))
-
-import keras, tensorflow as tf, numpy as np, sys, copy, argparse
-from keras import backend as K
-from keras.layers import Input, Add, Subtract, Average, RepeatVector, Lambda, Activation, Conv2D
-from keras.backend import mean, update_sub, ones, shape, sum, expand_dims
-from keras.layers.core import Dense, Activation, Flatten
-from keras.models import Sequential, Model
-from keras.optimizers import Adam
-from collections import deque
-import json, os, errno
-import random
-from shutil import copyfile
 import pdb
+from threading import Thread, Lock
 
 class Environment:
 	def __init__(self, env_name, fps=10, frame_callback=None, grayscale=False, normalized=False):
@@ -45,6 +34,7 @@ class Environment:
 
 		self.is_ingame = False
 		self.run_episode = True
+		self.mutex = Lock()
 
 		try:
 			self.model = load_model(self.model_path)
@@ -54,6 +44,7 @@ class Environment:
 
 		#in-game model
 		self.ingame_actions = self.env_config["ingame_action_names"]
+		self.ingame_action_space = self.env_config["ingame_action_space"]
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 		self.BUFFER_SIZE = 4
@@ -66,20 +57,8 @@ class Environment:
 		self.state_buffer = []
 		self.episode_num = 0
 
-		try:
-			self.ingame_model = load_model(self.ingame_load_model_path)
-		except OSError as e:
-			print("No in-game model prediction!")
-			self.ingame_model = None
-
-		self.ddqn = DDQN(ingame_actions=self.ingame_actions, 
-		                models_path=self.ingame_models_path,
-		                config=self.env_config,
-		                saved_model=self.ingame_model)
-
-		self.ingame_model = self.ddqn.dqn_agent.q_network.model
-		self.ddqn.dqn_agent.q_network.save_model(os.path.join(self.ingame_models_path, "checkpoint_0.h5"))
-		self.ingame_model._make_predict_function()
+		self.ingame_model = DQN_Model(action_size=self.ingame_action_space,
+								model_path=self.ingame_models_path, filename=None)
 
 	def load_config(self):
 		spec = importlib.util.spec_from_file_location("module.define", os.path.join(self.path, "__init__.py"))
@@ -105,8 +84,6 @@ class Environment:
 
 		return data
 
-		# NN-Tr XD lets go
-
 	def render(self):
 		img = self.vnc.screen.get_array()
 		img = Image.fromarray(img)
@@ -118,49 +95,62 @@ class Environment:
 
 	def on_frame(self):
 		state, img = self.render()
+		episode_num = self.episode_num
+		frame_count = self.frame_count
 
-		if (self.last_action and self.run_episode):
-			self.state_buffer = self.state_buffer[1:]
-			self.state_buffer.append(np.expand_dims(state[0], axis=2))
-			self.replay_memory.append(self.compress_state(self.prev_state_buffer), self.last_action, 
-				self.last_reward, self.compress_state(self.state_buffer), not self.is_ingame)
+		self.mutex.acquire()
+		if (episode_num == self.episode_num):
+			self.frame_count += 1
 
-			if not self.is_ingame:
-				self.prev_state_buffer = []
-				self.last_action = None
-				self.last_reward = None
-				self.state_buffer = []
-				self.episode_num += 1
+			if (self.last_action):
+				# pdb.set_trace()
+				self.state_buffer = self.state_buffer[1:]
+				self.state_buffer.append(np.expand_dims(state[0], axis=2))
+				self.replay_memory.append(self.compress_state(self.prev_state_buffer), self.last_action, 
+					self.last_reward, self.compress_state(self.state_buffer), not self.is_ingame)
 
-				self.run_episode = False
-				print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
-				if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
-					self.ddqn.dqn_agent.train(self.replay_memory, self.episode_num)
-				if self.episode_num % 10:
-					self.ingame_model = self.ddqn.dqn_agent.q_network.model
-					self.ingame_model._make_predict_function()
-				self.run_episode = True
+				if not self.is_ingame:
+					self.prev_state_buffer = []
+					self.last_action = None
+					self.last_reward = None
+					self.state_buffer = []
+					self.episode_num += 1
 
-		# print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
-		screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
-		
-		action_in_game = None
-		if self.is_ingame:
-			if len(self.state_buffer) < self.BUFFER_SIZE:
-				self.state_buffer = []
-				for i in range(self.BUFFER_SIZE):
-					self.state_buffer.append(np.expand_dims(state[0], axis=2))
+					self.run_episode = False
+					# self.mutex.release()
+					print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
+					if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
+						# pdb.set_trace()
+						Trainer(self.ingame_action_space, model_path=self.ingame_models_path, 
+							episode_number=self.episode_num).train(self.replay_memory)
+						if self.episode_num % 10:
+							self.ingame_model = DQN_Model(action_size=self.ingame_action_space,
+									model_path=self.ingame_models_path, 
+									filename="checkpoint_"+str(episode_number)+".h5")
+					
+					# self.mutex.acquire()
+					self.run_episode = True
 
-			inp = np.expand_dims(self.compress_state(self.state_buffer), axis=0)
-			# print(self.ingame_actions[np.argmax(self.ingame_model.predict(
-			# 	np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])])
-			action_idx = np.argmax(self.ingame_model.predict(
-				np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])
-			action_in_game = self.ingame_actions[action_idx]
-			self.prev_state_buffer = self.state_buffer
-			self.last_action = action_idx
+			screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
+			
+			action_in_game = None
+			if self.is_ingame:
+				if len(self.state_buffer) < self.BUFFER_SIZE:
+					self.state_buffer = []
+					for i in range(self.BUFFER_SIZE):
+						self.state_buffer.append(np.expand_dims(state[0], axis=2))
 
-		self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, 
-																action_in_game, self.vnc, self.run_episode)
+				action_idx = np.argmax(self.ingame_model.predict(
+					np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])
 
-		self.frame_count += 1
+				action_in_game = self.ingame_actions[action_idx]
+				self.prev_state_buffer = self.state_buffer
+				self.last_action = action_idx
+
+			is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, 
+															action_in_game, self.vnc, self.run_episode)
+
+			if self.run_episode:
+				self.is_ingame = is_ingame
+
+		self.mutex.release()
