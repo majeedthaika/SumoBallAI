@@ -53,6 +53,138 @@ class Replay_Memory():
 	def __len__(self):
 		return len(self.memory)
 
+class Model:
+	def __init__(self, action_size, model_path, filename=None, lr =  0.0001,  gamma = 1):
+		self.action_size = action_size
+		self.state_size = (84, 84, 4)
+		self.model_path = model_path
+		if filename:
+			self.model = self.load_model(os.path.join(model_path, filename))
+		else:
+			inputs = Input(shape = (84, 84, 4))
+			c1 = Conv2D(32, (8, 8), strides=(4, 4), activation='relu')(inputs)
+			c2 = Conv2D(64, (4, 4), strides=(2, 2), activation='relu')(c1)
+			c3 = Conv2D(64, (3, 3), activation = 'relu')(c2)
+			f1 = Flatten()(c3)
+
+			d1 = Dense(512, activation = 'relu')(f1)
+			merged = Dense(self.action_size)(d1)
+
+			# v1 = Dense(512, activation = 'relu')(f1)
+			# valFunc = Dense(1, activation = 'relu')(v1)
+
+			# a1 = Dense(512, activation = 'relu')(f1)
+			# advFunc = Dense(self.action_size, activation = 'relu')(a1)
+			# advFuncMean = Lambda(lambda x: mean(x, axis=1))(advFunc)
+			# advFuncOut = Lambda(lambda x: x[0] - expand_dims(x[1], axis=1))([advFunc, advFuncMean])
+
+			# merged = Lambda(lambda x: x[0] + x[1])([valFunc, advFuncOut])
+
+			self.model = Model(inputs=inputs, outputs=merged)
+			optimizer = keras.optimizers.Adam(lr=self.lr)
+			self.model.compile(optimizer=optimizer,
+				loss='mean_squared_error',
+				metrics=['accuracy'])
+		self.model._make_predict_function()
+	def get_model(self):
+		return self.model
+	def save_model(self, path):
+		self.model.save(path)
+	def load_model(self, path):
+		try:
+			self.model = load_model(path)
+		except:
+			self.model = load_model(os.path.join(self.model_path, "checkpoint_0.h5"))
+
+class Trainer:
+	def __init__(self, action_size, model_path, filename=None, batch_size=64, lr=0.0001, gamma=1):
+		params = {
+			"epsilon_initial": 0.5,
+			"epsilon_final": 0.05,
+			"epsilon": 0.5,
+			"epsilon_decay": .995,
+			"epsilon_interval": 100000,
+			"gamma": 1,
+			"train_iterations": 30,
+			"num_iterations": 200,
+			"num_episodes": 3000,
+			"learning_rate": 0.0001,
+			"batch_size": 32,
+			"replay_memory_size": 1000000,
+			"burn_in_size": 10000,
+			"gpu": False,
+		}
+		self.state_size = (84, 84, 4)
+		self.lr = float(params['learning_rate'])
+
+		self.action_size = action_size
+		self.lr = lr
+		self.gamma = gamma
+		self.input_shape = (self.state_size,)
+		self.batch_size = batch_size
+		self.Model_class = Model(action_size, model_path, filename).
+		self.model = self.Model_class.get_model()
+		self.epsilon = float(params['epsilon'])
+		self.epsilon_decay = float(params['epsilon_decay'])
+		self.epsilon_initial = float(params['epsilon_initial'])
+		self.epsilon_final = float(params['epsilon_final'])
+		self.epsilon_interval = float(params['epsilon_interval'])
+		self.gamma = float(params['gamma'])
+
+		# training parameters
+		self.num_iterations = int(params['num_iterations'])
+		self.num_episodes = int(params['num_episodes'])
+		self.learning_rate = float(params['learning_rate'])
+		self.train_iterations = int(params['train_iterations'])
+
+	def train_step(self, minibatch):
+		batch_size = len(minibatch)
+		# SGD on minibatch
+		s, actions, rewards, ss, dones = \
+				[np.array(x) for x in zip(*minibatch)]
+
+		qmax_ss = np.amax(self.model.predict(ss), axis=1, keepdims=1)
+
+		assert qmax_ss.shape==(batch_size, 1), qmax_ss.shape
+		assert rewards.shape==(batch_size, 1), rewards.shape
+		assert (1 - dones).shape==(batch_size, 1), dones.shape
+
+		g = rewards + self.gamma * (1 - dones) * qmax_ss
+		g = g.astype('float32')
+		assert g.shape==(batch_size, 1), g.shape
+
+		target_q_s = self.model.predict(s)
+		target_q_s[np.arange(batch_size), actions.reshape(-1)] = g.reshape(-1)
+		assert (target_q_s[np.arange(batch_size), actions.reshape(-1)] == g.reshape(-1)).all()
+		print(self.model.summary())
+		print(s.shape)
+		print(target_q_s.shape)
+		# pdb.set_trace()
+		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)
+	
+	def annealing(self, num_episode, iterations, strategy='linear', step='episodes'):
+		if step == 'episodes':
+			if strategy == 'linear':
+				retval = max(self.epsilon_initial - num_episode * (self.epsilon_initial - self.epsilon_final) / self.num_episodes, self.epsilon_final)
+			elif strategy == 'exponential':
+				if self.epsilon <= self.epsilon_final:
+					return self.epsilon_final
+				retval = self.epsilon * self.epsilon_decay
+		else:
+			if strategy == 'linear':
+				retval = max(self.epsilon_initial - iterations * (self.epsilon_initial - self.epsilon_final) / self.epsilon_interval, self.epsilon_final)
+		return retval
+	
+	def train(self, replay_memory, episode_number):
+		for i in range(self.train_iterations):
+			print("batch #"+str(i))
+			minibatch = replay_memory.sample_batch(self.batch_size)
+			self.train_step(minibatch)
+		self.epsilon = self.annealing(episode_number, iterations)
+		self.Model.save_model(os.path.join(self.model_path, "checkpoint_"+str(episode_number)+".h5"))
+
+
+	
 class QNetwork(object):
 
 	# This class essentially defines the network architecture.
@@ -125,7 +257,7 @@ class QNetwork(object):
 class DuelingDeepQNetwork(QNetwork):
 	def __init__(self, *args, **kwargs):
 		super(DuelingDeepQNetwork, self).__init__(*args, **kwargs)
-
+		self.model = Model(kwargs['ingame_actions'])
 		inputs = Input(shape = (84, 84, 4))
 		c1 = Conv2D(32, (8, 8), strides=(4, 4), activation='relu')(inputs)
 		c2 = Conv2D(64, (4, 4), strides=(2, 2), activation='relu')(c1)
@@ -167,7 +299,23 @@ class DQN_Agent():
 	# (4) Create a function to test the Q Network's performance on the environment.
 	# (5) Create a function for Experience Replay.
 
-	def __init__(self, params, ingame_actions, models_path, config, saved_model=None):
+	def __init__(self, ingame_actions, models_path, config, saved_model=None):
+		params = {
+			"epsilon_initial": 0.5,
+			"epsilon_final": 0.05,
+			"epsilon": 0.5,
+			"epsilon_decay": .995,
+			"epsilon_interval": 100000,
+			"gamma": 1,
+			"train_iterations": 30,
+			"num_iterations": 200,
+			"num_episodes": 3000,
+			"learning_rate": 0.0001,
+			"batch_size": 32,
+			"replay_memory_size": 1000000,
+			"burn_in_size": 10000,
+			"gpu": False,
+		}
 
 		self.action_space = np.arange(len(ingame_actions))
 		self.action_size = len(ingame_actions)
@@ -356,7 +504,7 @@ class DDQN:
 			"epsilon": 0.5,
 			"epsilon_decay": .995,
 			"epsilon_interval": 100000,
-			"gamma": 0.5,
+			"gamma": 1,
 			"train_iterations": 30,
 			"num_iterations": 200,
 			"num_episodes": 3000,
