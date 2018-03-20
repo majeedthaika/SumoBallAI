@@ -1,7 +1,7 @@
 from FlashRL.lib.Game import Game
 import sys
 import pdb
-from pyVNC import rfb
+import time
 
 class RunSim:
 	def __init__(self, set_player_types=[0]*6, set_deathmatch=False):
@@ -30,11 +30,14 @@ class RunSim:
 		self.is_ingame = False
 		self.win_screens = {"pink_wins", "purple_wins", "blue_wins", "red_wins", "yellow_wins", "green_wins"}
 
+		self.curr_actions = set()
+
 		Game("sumoball", fps=10, frame_callback=self.on_frame, grayscale=True, normalized=True)
 
 	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc, run_episode):
 		# print(vnc.screen.cursor_loc)
 		# pdb.set_trace()
+
 		frame_reward = 0
 		if not run_episode:
 			return self.is_ingame, frame_reward
@@ -73,8 +76,8 @@ class RunSim:
 					vnc.send_mouse("Left", (295, 232)) # go to game
 					vnc.send_mouse("Left", (295, 232)) # need twice to actually press button
 					self.is_ingame = True
-			elif (screen_type in win_screens):
-				vnc.send_key(rfb.KEY_Return, duration=0.1) #restart game
+			elif (screen_type in self.win_screens):
+				vnc.send_press("enter") #restart game
 				self.is_ingame = True
 			else:
 				self.is_ingame = True
@@ -82,25 +85,46 @@ class RunSim:
 			# in game
 			print(action_in_game)
 			if (action_in_game == "UP"):
-				vnc.send_key(rfb.KEY_Up, duration=0.1)
+				if "w" not in self.curr_actions or len(self.curr_actions) != 1:
+					self.curr_actions.clear()
+					vnc.send_press("w")
+					self.curr_actions.add("w")
 			elif (action_in_game == "UP_RIGHT"):
-				vnc.send_key(rfb.KEY_Up, duration=0.1)
-				vnc.send_key(rfb.KEY_Right, duration=0.1)
+				if "w" not in self.curr_actions or "d" not in self.curr_actions or len(self.curr_actions) != 2:
+					vnc.send_press("w")
+					vnc.send_press("d")
+					self.curr_actions.add("w")
+					self.curr_actions.add("d")
 			elif (action_in_game == "RIGHT"):
-				vnc.send_key(rfb.KEY_Right, duration=0.1)
+				if "d" not in self.curr_actions or len(self.curr_actions) != 1:
+					vnc.send_press("d")
+					self.curr_actions.add("d")
 			elif (action_in_game == "DOWN_RIGHT"):
-				vnc.send_key(rfb.KEY_Down, duration=0.1)
-				vnc.send_key(rfb.KEY_Right, duration=0.1)
+				if "s" not in self.curr_actions or "d" not in self.curr_actions or len(self.curr_actions) != 2:
+					vnc.send_press("s")
+					vnc.send_press("d")
+					self.curr_actions.add("s")
+					self.curr_actions.add("d")
 			elif (action_in_game == "DOWN"):
-				vnc.send_key(rfb.KEY_Down, duration=0.1)
+				if "s" not in self.curr_actions or len(self.curr_actions) != 1:
+					vnc.send_press("s")
+					self.curr_actions.add("s")
 			elif (action_in_game == "DOWN_LEFT"):
-				vnc.send_key(rfb.KEY_Down, duration=0.1)
-				vnc.send_key(rfb.KEY_Left, duration=0.1)
+				if "s" not in self.curr_actions or "a" not in self.curr_actions or len(self.curr_actions) != 2:
+					vnc.send_press("s")
+					vnc.send_press("a")
+					self.curr_actions.add("s")
+					self.curr_actions.add("a")
 			elif (action_in_game == "LEFT"):
-				vnc.send_key(rfb.KEY_Left, duration=0.1)
+				if "a" not in self.curr_actions or len(self.curr_actions) != 1:
+					vnc.send_press("a")
+					self.curr_actions.add("a")
 			else:
-				vnc.send_key(rfb.KEY_Up, duration=0.1)
-				vnc.send_key(rfb.KEY_Left, duration=0.1)
+				if "w" not in self.curr_actions or "a" not in self.curr_actions or len(self.curr_actions) != 2:
+					vnc.send_press("w")
+					vnc.send_press("a")
+					self.curr_actions.add("w")
+					self.curr_actions.add("a")
 
 			if (screen_type == "red_wins"):
 				frame_reward = 50
@@ -122,8 +146,7 @@ class RunSim:
 				self.is_ingame = False
 			else:
 				frame_reward = 1
-
 		return self.is_ingame, frame_reward
 
 
-RunSim(set_player_types=["Player1", "Player2", "None", "None", "None", "None"], set_deathmatch=False)
+RunSim(set_player_types=["Player2", "CPU1", "None", "None", "None", "None"], set_deathmatch=False)

@@ -134,6 +134,7 @@ class Environment:
 				if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
 					self.ingame_model = self.ddqn.dqn_agent.train(self.replay_memory)
 				self.run_episode = True
+				pdb.set_trace()
 
 		# print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
 		screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
