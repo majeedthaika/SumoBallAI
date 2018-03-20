@@ -102,6 +102,7 @@ class QNetwork(object):
 		target_q_s = self.model.predict(s)
 		target_q_s[np.arange(batch_size), actions.reshape(-1)] = g.reshape(-1)
 		assert (target_q_s[np.arange(batch_size), actions.reshape(-1)] == g.reshape(-1)).all()
+		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)
 
 	def save_model_weights(self, path):
 		self.model.save_weights(path)
@@ -163,6 +164,7 @@ class DQN_Agent():
 		self.action_size = len(ingame_actions)
 		self.state_size = (84, 84, 4)
 		self.lr = float(params['learning_rate'])
+		self.filename = "sumoball"
 
 		# set up the q network
 		self.q_network = DuelingDeepQNetwork(self.state_size, self.action_size, 
@@ -182,6 +184,7 @@ class DQN_Agent():
 		self.num_iterations = int(params['num_iterations'])
 		self.num_episodes = int(params['num_episodes'])
 		self.learning_rate = float(params['learning_rate'])
+		self.train_iterations = int(params['train_iterations'])
 
 		# set up memory
 		self.memory = Replay_Memory(int(params['replay_memory_size']))
@@ -248,55 +251,19 @@ class DQN_Agent():
 	def compress_state(self, curr_state):
 		return np.concatenate(curr_state, axis=2)
 
-	def train(self):
-		if len(self.memory) == 0:
-			self.burn_in_memory()
+	def train(self, replay_memory, episode_number):
+		for i in range(self.train_iterations):
+			minibatch = replay_memory.sample_batch(self.batch_size)
+			self.q_network.train_step(minibatch)
+		self.epsilon = self.annealing(episode, iterations)
+		if episode % 1000 == 0:
+			#avg_test_reward = self.test(20)
+			#summary_line = "Episode: {}\nPrevious episode's reward: {}\nAverage reward for last 100 episodes: {}\nAverage test reward for 20 episodes: {}\nEpsilon: {}".format(episode, episode_reward, sum_reward/100, avg_test_reward, self.epsilon)
+			#print (summary_line)
+			#sum_reward = 0
 
-		sum_reward = 0
-		iterations = 0
-		for episode in xrange(1, self.num_episodes + 1):
-			state_block = [self.convert_to_grayscale(self.env.reset())]
-			for i in range(3):
-				state_block.append(self.convert_to_grayscale(self.env.step(0)[0]))
-			state = self.compress_state(state_block)
-			episode_reward = 0
-			while 1:
-				# print (iterations)
-				iterations += 1
-				self.epsilon = self.annealing(episode, iterations)
-				# take an action
-				action = self.sample_action(state, 'epsilon_greedy', True)
-				next_state, reward, is_terminal, _ = self.env.step(action)
-
-				next_state_block = state_block[1:]
-				next_state_block.append(self.convert_to_grayscale(next_state))
-				
-				next_state = self.compress_state(next_state_block)
-
-				episode_reward += reward
-				transition = self.make_transition(state, action, reward, next_state, is_terminal)
-
-				# add it in memory
-				self.memory.append(transition)
-
-				minibatch = self.memory.sample_batch(self.batch_size)
-
-				self.q_network.train_step(minibatch)
-
-				if is_terminal:
-					break
-				state = next_state
-			print("episode: {}, reward: {}".format(episode, episode_reward))
-			sum_reward += episode_reward
-
-			if episode % 100 == 0:
-				avg_test_reward = self.test(20)
-				summary_line = "Episode: {}\nPrevious episode's reward: {}\nAverage reward for last 100 episodes: {}\nAverage test reward for 20 episodes: {}\nEpsilon: {}".format(episode, episode_reward, sum_reward/100, avg_test_reward, self.epsilon)
-				print (summary_line)
-				sum_reward = 0
-
-				ckpt = self.filename + '-' + str(int(episode/100))
-				self.q_network.save_model_weights(ckpt)
+			ckpt = self.filename + '-' + str(int(episode/1000))
+			self.q_network.save_model_weights(ckpt)
 
 	def test(self, test_num_episode, model_file=None):
 		# Evaluate the performance of your agent over 100 episodes, by calculating cummulative rewards for the 100 episodes.
@@ -380,6 +347,7 @@ class DDQN:
 			"epsilon_decay": .995,
 			"epsilon_interval": 100000,
 			"gamma": 0.5,
+			"train_iterations": 30,
 			"num_iterations": 200,
 			"num_episodes": 3000,
 			"learning_rate": 0.0001,

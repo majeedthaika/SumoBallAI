@@ -78,6 +78,7 @@ class RunSim:
 				self.is_ingame = True
 		else:
 			# in game
+			print(action_in_game)
 			if (action_in_game == "UP"):
 				vnc.send_key("up arrow", duration=0.1)
 			elif (action_in_game == "UP_RIGHT"):

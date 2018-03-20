@@ -43,7 +43,7 @@ class Environment:
 		self.ingame_actions = self.env_config["ingame_action_names"]
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
-		self.BUFFER_SIZE = 5
+		self.BUFFER_SIZE = 4
 		self.REPLAY_MAX_SIZE = 100000
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 
@@ -62,6 +62,8 @@ class Environment:
 		                models_path=self.ingame_models_path,
 		                config=self.env_config,
 		                saved_model=self.ingame_model)
+
+		self.ingame_model = self.ddqn.dqn_agent.q_network.model
 
 	def load_config(self):
 		spec = importlib.util.spec_from_file_location("module.define", os.path.join(self.path, "__init__.py"))
@@ -128,10 +130,17 @@ class Environment:
 				for i in range(self.BUFFER_SIZE):
 					self.state_buffer.append(np.expand_dims(state[0], axis=2))
 
-			action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(self.state_buffer)[0])]
+			inp = np.expand_dims(self.compress_state(self.state_buffer), axis=0)
+			print(self.ingame_model.summary())
+			print(inp.shape)
+			print(self.ingame_model.predict(inp)[0].shape)
+
+			action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(
+				np.array([self.compress_state(self.state_buffer)])), batch_size=1)[0]]
 			self.prev_state_buffer = self.state_buffer
 			self.last_action = action_in_game
 
-		self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, action_in_game, self.vnc)
+		self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, 
+																action_in_game, self.vnc, self.run_episode)
 
 		self.frame_count += 1
