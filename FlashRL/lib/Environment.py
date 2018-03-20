@@ -117,7 +117,7 @@ class Environment:
 	def on_frame(self):
 		state, img = self.render()
 
-		if self.last_action is not None:
+		if self.last_action:
 			self.state_buffer = self.state_buffer[1:]
 			self.state_buffer.append(np.expand_dims(state[0], axis=2))
 			self.replay_memory.append(self.compress_state(self.prev_state_buffer), self.last_action, 
@@ -130,6 +130,7 @@ class Environment:
 				self.state_buffer = []
 
 				self.run_episode = False
+				print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
 				if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
 					self.ingame_model = self.ddqn.dqn_agent.train(self.replay_memory)
 				self.run_episode = True
@@ -145,6 +146,8 @@ class Environment:
 					self.state_buffer.append(np.expand_dims(state[0], axis=2))
 
 			inp = np.expand_dims(self.compress_state(self.state_buffer), axis=0)
+			# print(self.ingame_actions[np.argmax(self.ingame_model.predict(
+			# 	np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])])
 			action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(
 				np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])]
 			self.prev_state_buffer = self.state_buffer

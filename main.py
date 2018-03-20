@@ -1,5 +1,7 @@
 from FlashRL.lib.Game import Game
 import sys
+import pdb
+from pyVNC import rfb
 
 class RunSim:
 	def __init__(self, set_player_types=[0]*6, set_deathmatch=False):
@@ -32,7 +34,7 @@ class RunSim:
 
 	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc, run_episode):
 		# print(vnc.screen.cursor_loc)
-
+		# pdb.set_trace()
 		frame_reward = 0
 		if not run_episode:
 			return self.is_ingame, frame_reward
@@ -72,7 +74,7 @@ class RunSim:
 					vnc.send_mouse("Left", (295, 232)) # need twice to actually press button
 					self.is_ingame = True
 			elif (screen_type in win_screens):
-				vnc.send_key("keypad enter", duration=0.1) #restart game
+				vnc.send_key(rfb.KEY_Return, duration=0.1) #restart game
 				self.is_ingame = True
 			else:
 				self.is_ingame = True
@@ -80,25 +82,25 @@ class RunSim:
 			# in game
 			print(action_in_game)
 			if (action_in_game == "UP"):
-				vnc.send_key("up arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Up, duration=0.1)
 			elif (action_in_game == "UP_RIGHT"):
-				vnc.send_key("up arrow", duration=0.1)
-				vnc.send_key("right arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Up, duration=0.1)
+				vnc.send_key(rfb.KEY_Right, duration=0.1)
 			elif (action_in_game == "RIGHT"):
-				vnc.send_key("right arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Right, duration=0.1)
 			elif (action_in_game == "DOWN_RIGHT"):
-				vnc.send_key("down arrow", duration=0.1)
-				vnc.send_key("right arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Down, duration=0.1)
+				vnc.send_key(rfb.KEY_Right, duration=0.1)
 			elif (action_in_game == "DOWN"):
-				vnc.send_key("down arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Down, duration=0.1)
 			elif (action_in_game == "DOWN_LEFT"):
-				vnc.send_key("down arrow", duration=0.1)
-				vnc.send_key("left arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Down, duration=0.1)
+				vnc.send_key(rfb.KEY_Left, duration=0.1)
 			elif (action_in_game == "LEFT"):
-				vnc.send_key("left arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Left, duration=0.1)
 			else:
-				vnc.send_key("up arrow", duration=0.1)
-				vnc.send_key("left arrow", duration=0.1)
+				vnc.send_key(rfb.KEY_Up, duration=0.1)
+				vnc.send_key(rfb.KEY_Left, duration=0.1)
 
 			if (screen_type == "red_wins"):
 				frame_reward = 50
@@ -124,4 +126,4 @@ class RunSim:
 		return self.is_ingame, frame_reward
 
 
-RunSim(set_player_types=["Player1", "CPU1", "None", "None", "None", "None"], set_deathmatch=False)
+RunSim(set_player_types=["Player1", "Player2", "None", "None", "None", "None"], set_deathmatch=False)

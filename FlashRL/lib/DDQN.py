@@ -145,7 +145,7 @@ class DuelingDeepQNetwork(QNetwork):
 			  loss='mean_squared_error',
 			  metrics=['accuracy'])
 
-		if kwargs['saved_model'] is not None:
+		if kwargs['saved_model']:
 			self.model = kwargs['saved_model']
 		else:
 			self.model = model
