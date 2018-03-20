@@ -189,10 +189,12 @@ class Trainer:
 		return retval
 	
 	def train(self, replay_memory):
-		for i in range(self.train_iterations):
-			print("batch #"+str(i))
-			minibatch = replay_memory.sample_batch(self.batch_size)
-			self.train_step(minibatch)
+		with tf.Session(graph=tf.Graph()) as sess:
+			K.set_session(sess)
+			for i in range(self.train_iterations):
+				print("batch #"+str(i))
+				minibatch = replay_memory.sample_batch(self.batch_size)
+				self.train_step(minibatch)
 		self.epsilon = self.annealing(episode_number, iterations)
 		self.model.save_model(os.path.join(self.model_path, 
 			"checkpoint_"+str(self.episode_number)+".h5"))
