@@ -256,10 +256,13 @@ class DQN_Agent():
 
 	def train(self, replay_memory, episode_number):
 		for i in range(self.train_iterations):
+			print("batch #"+str(i))
 			minibatch = replay_memory.sample_batch(self.batch_size)
+			print("batch mid")
 			self.q_network.train_step(minibatch)
-		self.epsilon = self.annealing(episode, iterations)
-		if episode % 1000 == 0:
+			print("batch end")
+		self.epsilon = self.annealing(episode_number, iterations)
+		if episode_number % 1000 == 0:
 			#avg_test_reward = self.test(20)
 			#summary_line = "Episode: {}\nPrevious episode's reward: {}\nAverage reward for last 100 episodes: {}\nAverage test reward for 20 episodes: {}\nEpsilon: {}".format(episode, episode_reward, sum_reward/100, avg_test_reward, self.epsilon)
 			#print (summary_line)

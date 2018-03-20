@@ -2,6 +2,7 @@ from FlashRL.lib.Game import Game
 import sys
 import pdb
 import time
+from pygame.locals import *
 
 class RunSim:
 	def __init__(self, set_player_types=[0]*6, set_deathmatch=False):
@@ -77,7 +78,7 @@ class RunSim:
 					vnc.send_mouse("Left", (295, 232)) # need twice to actually press button
 					self.is_ingame = True
 			elif (screen_type in self.win_screens):
-				vnc.send_press("enter") #restart game
+				vnc.send_press(K_RETURN) #restart game
 				self.is_ingame = True
 			else:
 				self.is_ingame = True
@@ -85,42 +86,49 @@ class RunSim:
 			# in game
 			print(action_in_game)
 			if (action_in_game == "UP"):
-				if "w" not in self.curr_actions or len(self.curr_actions) != 1:
+				if "w" not in self.curr_actions and len(self.curr_actions) != 1:
 					self.curr_actions.clear()
 					vnc.send_press("w")
 					self.curr_actions.add("w")
 			elif (action_in_game == "UP_RIGHT"):
-				if "w" not in self.curr_actions or "d" not in self.curr_actions or len(self.curr_actions) != 2:
+				if "w" not in self.curr_actions and "d" not in self.curr_actions and len(self.curr_actions) != 2:
+					self.curr_actions.clear()
 					vnc.send_press("w")
 					vnc.send_press("d")
 					self.curr_actions.add("w")
 					self.curr_actions.add("d")
 			elif (action_in_game == "RIGHT"):
-				if "d" not in self.curr_actions or len(self.curr_actions) != 1:
+				if "d" not in self.curr_actions and len(self.curr_actions) != 1:
+					self.curr_actions.clear()
 					vnc.send_press("d")
 					self.curr_actions.add("d")
 			elif (action_in_game == "DOWN_RIGHT"):
-				if "s" not in self.curr_actions or "d" not in self.curr_actions or len(self.curr_actions) != 2:
+				if "s" not in self.curr_actions and "d" not in self.curr_actions and len(self.curr_actions) != 2:
+					self.curr_actions.clear()
 					vnc.send_press("s")
 					vnc.send_press("d")
 					self.curr_actions.add("s")
 					self.curr_actions.add("d")
 			elif (action_in_game == "DOWN"):
-				if "s" not in self.curr_actions or len(self.curr_actions) != 1:
+				if "s" not in self.curr_actions and len(self.curr_actions) != 1:
+					self.curr_actions.clear()
 					vnc.send_press("s")
 					self.curr_actions.add("s")
 			elif (action_in_game == "DOWN_LEFT"):
-				if "s" not in self.curr_actions or "a" not in self.curr_actions or len(self.curr_actions) != 2:
+				if "s" not in self.curr_actions and "a" not in self.curr_actions and len(self.curr_actions) != 2:
+					self.curr_actions.clear()
 					vnc.send_press("s")
 					vnc.send_press("a")
 					self.curr_actions.add("s")
 					self.curr_actions.add("a")
 			elif (action_in_game == "LEFT"):
-				if "a" not in self.curr_actions or len(self.curr_actions) != 1:
+				if "a" not in self.curr_actions and len(self.curr_actions) != 1:
+					self.curr_actions.clear()
 					vnc.send_press("a")
 					self.curr_actions.add("a")
 			else:
-				if "w" not in self.curr_actions or "a" not in self.curr_actions or len(self.curr_actions) != 2:
+				if "w" not in self.curr_actions and "a" not in self.curr_actions and len(self.curr_actions) != 2:
+					self.curr_actions.clear()
 					vnc.send_press("w")
 					vnc.send_press("a")
 					self.curr_actions.add("w")

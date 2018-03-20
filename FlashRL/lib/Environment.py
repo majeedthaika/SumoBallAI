@@ -57,13 +57,14 @@ class Environment:
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 		self.BUFFER_SIZE = 4
-		self.REPLAY_MAX_SIZE = 100000
+		self.REPLAY_MAX_SIZE = 50
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 
 		self.prev_state_buffer = []
 		self.last_action = None
 		self.last_reward = None
 		self.state_buffer = []
+		self.episode_num = 0
 
 		try:
 			self.ingame_model = load_model(self.ingame_load_model_path)
@@ -128,13 +129,14 @@ class Environment:
 				self.last_action = None
 				self.last_reward = None
 				self.state_buffer = []
+				self.episode_num += 1
 
 				self.run_episode = False
 				print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
 				if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
-					self.ingame_model = self.ddqn.dqn_agent.train(self.replay_memory)
+					# pdb.set_trace()
+					self.ingame_model = self.ddqn.dqn_agent.train(self.replay_memory, self.episode_num)
 				self.run_episode = True
-				pdb.set_trace()
 
 		# print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
 		screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
