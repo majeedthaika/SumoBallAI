@@ -30,10 +30,13 @@ class RunSim:
 
 		Game("sumoball", fps=10, frame_callback=self.on_frame, grayscale=True, normalized=True)
 
-	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc):
+	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc, run_episode):
 		# print(vnc.screen.cursor_loc)
 
 		frame_reward = 0
+		if not run_episode:
+			return self.is_ingame, frame_reward
+
 		if not self.is_ingame:
 			if (screen_type == "load_screen"):
 				vnc.send_mouse("Left", (160, 207)) # click start

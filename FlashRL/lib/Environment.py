@@ -31,6 +31,7 @@ class Environment:
 		self.state_space = self.env_config["state_space"]
 
 		self.is_ingame = False
+		self.run_episode = True
 
 		try:
 			self.model = load_model(self.model_path)
@@ -103,8 +104,8 @@ class Environment:
 		if self.last_action is not None:
 			self.state_buffer = self.state_buffer[1:]
 			self.state_buffer.append(np.expand_dims(state[0], axis=2))
-			self.replay_memory.append(self.prev_state_buffer, self.last_action, self.last_reward, 
-				self.state_buffer, not self.is_ingame)
+			self.replay_memory.append(self.compress_state(self.prev_state_buffer), self.last_action, 
+				self.last_reward, self.compress_state(self.state_buffer), not self.is_ingame)
 
 			if not self.is_ingame:
 				self.prev_state_buffer = []
@@ -112,7 +113,10 @@ class Environment:
 				self.last_reward = None
 				self.state_buffer = []
 
-				self.ingame_model = self.ddqn.dqn_agent.train(self.replay_memory)
+				self.run_episode = False
+				if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
+					self.ingame_model = self.ddqn.dqn_agent.train(self.replay_memory)
+				self.run_episode = True
 
 		# print(self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])])
 		screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
