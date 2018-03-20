@@ -102,19 +102,19 @@ class RunSim:
 			if (screen_type == "red_wins"):
 				frame_reward = 50
 				self.is_ingame = False
-			elif  (screen_type == "blue_wins"):
+			elif (screen_type == "blue_wins"):
 				frame_reward = -50
 				self.is_ingame = False
-			elif  (screen_type == "green_wins"):
+			elif (screen_type == "green_wins"):
 				frame_reward = -50
 				self.is_ingame = False
-			elif  (screen_type == "yellow_wins")
+			elif (screen_type == "yellow_wins"):
 				frame_reward = -50
 				self.is_ingame = False
-			elif  (screen_type == "pink_wins"):
+			elif (screen_type == "pink_wins"):
 				frame_reward = -50
 				self.is_ingame = False
-			elif  (screen_type == "purple_wins"):
+			elif (screen_type == "purple_wins"):
 				frame_reward = -50
 				self.is_ingame = False
 			else:
