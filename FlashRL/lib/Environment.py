@@ -151,10 +151,11 @@ class Environment:
 			inp = np.expand_dims(self.compress_state(self.state_buffer), axis=0)
 			# print(self.ingame_actions[np.argmax(self.ingame_model.predict(
 			# 	np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])])
-			action_in_game = self.ingame_actions[np.argmax(self.ingame_model.predict(
-				np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])]
+			action_idx = np.argmax(self.ingame_model.predict(
+				np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])
+			action_in_game = self.ingame_actions[action_idx]
 			self.prev_state_buffer = self.state_buffer
-			self.last_action = action_in_game
+			self.last_action = action_idx
 
 		self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, 
 																action_in_game, self.vnc, self.run_episode)

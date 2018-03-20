@@ -9,6 +9,7 @@ from collections import deque
 import json, os, errno
 import random
 from shutil import copyfile
+import pdb
 
 np.set_printoptions(threshold='nan')
 
@@ -95,6 +96,7 @@ class QNetwork(object):
 		assert qmax_ss.shape==(batch_size, 1), qmax_ss.shape
 		assert rewards.shape==(batch_size, 1), rewards.shape
 		assert (1 - dones).shape==(batch_size, 1), dones.shape
+
 		g = rewards + self.gamma * (1 - dones) * qmax_ss
 		g = g.astype('float32')
 		assert g.shape==(batch_size, 1), g.shape
@@ -102,6 +104,10 @@ class QNetwork(object):
 		target_q_s = self.model.predict(s)
 		target_q_s[np.arange(batch_size), actions.reshape(-1)] = g.reshape(-1)
 		assert (target_q_s[np.arange(batch_size), actions.reshape(-1)] == g.reshape(-1)).all()
+		print(self.model.summary())
+		print(s.shape)
+		print(target_q_s.shape)
+		pdb.set_trace()
 		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)
 
 	def save_model_weights(self, path):
@@ -258,9 +264,7 @@ class DQN_Agent():
 		for i in range(self.train_iterations):
 			print("batch #"+str(i))
 			minibatch = replay_memory.sample_batch(self.batch_size)
-			print("batch mid")
 			self.q_network.train_step(minibatch)
-			print("batch end")
 		self.epsilon = self.annealing(episode_number, iterations)
 		if episode_number % 1000 == 0:
 			#avg_test_reward = self.test(20)
