@@ -73,7 +73,7 @@ class DQN_Model:
 			# v1 = Dense(512, activation = 'relu')(f1)
 			# valFunc = Dense(1, activation = 'relu')(v1)
 
-			# a1 = Densie(512, activation = 'relu')(f1)
+			# a1 = Dense(512, activation = 'relu')(f1)
 			# advFunc = Dense(self.action_size, activation = 'relu')(a1)
 			# advFuncMean = Lambda(lambda x: mean(x, axis=1))(advFunc)
 			# advFuncOut = Lambda(lambda x: x[0] - expand_dims(x[1], axis=1))([advFunc, advFuncMean])
@@ -173,8 +173,8 @@ class Trainer:
 		print(s.shape)
 		print(target_q_s.shape)
 		# pdb.set_trace()
-		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)
-	
+		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)	
+
 	def annealing(self, num_episode, iterations, strategy='linear', step='episodes'):
 		if step == 'episodes':
 			if strategy == 'linear':
@@ -196,7 +196,4 @@ class Trainer:
 		self.epsilon = self.annealing(episode_number, iterations)
 		self.model.save_model(os.path.join(self.model_path, 
 			"checkpoint_"+str(self.episode_number)+".h5"))
-
-
-
 
