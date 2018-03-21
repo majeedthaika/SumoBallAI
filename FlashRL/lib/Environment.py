@@ -1,4 +1,4 @@
-import os
+import os, pickle
 import numpy as np
 from PIL import Image
 import importlib.util
@@ -55,6 +55,7 @@ class Environment:
 		self.BUFFER_SIZE = 4
 		self.REPLAY_MAX_SIZE = 1000
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
+		self.all_rewards = []
 
 		self.ep_buffer = []
 		self.prev_state_buffer = []
@@ -135,6 +136,7 @@ class Environment:
 					# pdb.set_trace()
 					if (len(self.ep_buffer) > 3):
 						self.replay_memory.append_many(self.ep_buffer)
+						self.all_rewards.append(np.array([self.episode_num,self.ep_reward]))
 						print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 
 						self.ep_buffer = []
@@ -161,6 +163,8 @@ class Environment:
 									self.tf_session, self.tf_graph, self.ingame_models_path)
 								self.train_target = self.episode_num + 10
 							if self.episode_num >= self.save_target:
+								pickle.dump(self.all_rewards, 
+									open(os.path.join(os.getcwd(), "training_rewards.p"), "wb"))
 								with self.tf_session.as_default():
 									with self.tf_graph.as_default():
 										self.critic_model.set_weights(self.actor_model.get_weights())
