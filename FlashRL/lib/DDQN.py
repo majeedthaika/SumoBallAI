@@ -158,7 +158,8 @@ class Trainer:
 		self.num_episodes = int(params['num_episodes'])
 		self.learning_rate = float(params['learning_rate'])
 		self.train_iterations = int(params['train_iterations'])
-
+	def get_epsilon(self):
+		return self.epsilon
 	def train_step(self, minibatch, tf_session, tf_graph):
 		# pdb.set_trace()
 		batch_size = len(minibatch)
@@ -201,8 +202,10 @@ class Trainer:
 		self.epsilon = self.annealing(self.episode_number)
 		with tf_session.as_default():
 			with tf_graph.as_default():
-				self.actor_model.save(os.path.join(model_path, 
-					"checkpoint_"+str(self.episode_number)+".h5"))
 				self.critic_model.set_weights(self.actor_model.get_weights())
+				if self.episode_number % 10 == 0:
+					self.actor_model.save(os.path.join(model_path, 
+						"checkpoint_"+str(self.episode_number/10 % 10)+".h5"))
+		return self.epsilon
 
 

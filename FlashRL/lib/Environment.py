@@ -9,7 +9,6 @@ import pdb
 from threading import Thread, Lock
 from keras import backend as K
 import tensorflow as tf
-import threading
 
 class Environment:
 	def __init__(self, env_name, fps=10, frame_callback=None, grayscale=False, normalized=False):
@@ -55,19 +54,25 @@ class Environment:
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 		self.BUFFER_SIZE = 4
-		self.REPLAY_MAX_SIZE = 50
+		self.REPLAY_MAX_SIZE = 10000
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 
 		self.prev_state_buffer = []
 		self.last_action = None
 		self.last_reward = None
+		self.ep_reward = 0
 		self.state_buffer = []
 		self.episode_num = 0
+
+		self.train_target = 0
+		self.save_target = 0
+		self.burned_in = False
 
 		self.win_screens = {"pink_wins", "purple_wins", "blue_wins", "red_wins", "yellow_wins", "green_wins"}
 		self.end_episode = False
 		self.in_win_screen = False
-		self.prev_win_screen = False
+		self.epsilon = 0.5
+		# self.prev_win_screen = False
 
 		with self.tf_session.as_default():
 			with self.tf_graph.as_default():
@@ -127,36 +132,46 @@ class Environment:
 				
 				if (self.end_episode):
 					self.end_episode = False
+					print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 
 					self.prev_state_buffer = []
 					self.last_action = None
 					self.last_reward = None
+					self.ep_reward = 0
 					self.state_buffer = []
 					self.episode_num += 1
 
 					print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
 					if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
-						Trainer(self.ingame_action_space, self.critic_model, 
-							self.actor_model, self.episode_num).train(self.replay_memory,
-							self.tf_session, self.tf_graph, self.ingame_models_path)
+						if not self.burned_in:
+							self.train_target = self.episode_num + 10
+							self.save_target = self.episode_num + 30
+							self.burned_in = True
 
-						if self.episode_num % 10:
+						print(self.episode_num, self.train_target, self.save_target)
+						if self.episode_num >= self.train_target:
+							self.epsilon = Trainer(self.ingame_action_space, self.critic_model, 
+								self.actor_model, self.episode_num).train(self.replay_memory,
+								self.tf_session, self.tf_graph, self.ingame_models_path)
+							self.train_target = self.episode_num + 10
+						if self.episode_num >= self.save_target:
 							with self.tf_session.as_default():
 								with self.tf_graph.as_default():
 									self.critic_model.set_weights(self.actor_model.get_weights())
+							self.save_target = self.episode_num + 30
 					self.mutex.release()
 				else:
 					self.mutex.release()				
 			else:
-				self.mutex.release()				
+				self.mutex.release()	
+
 
 			screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
 			self.in_win_screen = (screen_type in self.win_screens)
-			if (self.prev_win_screen and self.in_win_screen):
-				return
-			elif (self.in_win_screen and not self.end_episode):
+			if (self.in_win_screen and not self.end_episode):
 				self.end_episode = True
-			self.prev_win_screen = self.in_win_screen
+			elif (self.in_win_screen and self.end_episode):
+				return
 
 			action_in_game = None
 			if self.is_ingame:
@@ -165,8 +180,12 @@ class Environment:
 					for i in range(self.BUFFER_SIZE):
 						self.state_buffer.append(np.expand_dims(state[0], axis=2))
 
-				action_idx = np.argmax(self.critic_model.predict(
-					np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])
+				# pdb.set_trace()
+				if (np.random.uniform() > self.epsilon):
+					action_idx = np.argmax(self.critic_model.predict(
+						np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])
+				else:
+					action_idx = np.random.randint(0,self.ingame_action_space)
 
 				action_in_game = self.ingame_actions[action_idx]
 				self.prev_state_buffer = self.state_buffer
@@ -174,11 +193,13 @@ class Environment:
 
 			self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, 
 															action_in_game, self.vnc, self.run_episode)
-			
+			self.ep_reward += self.last_reward
+
 			if (not self.is_ingame and (screen_type not in self.win_screens)):
 				self.prev_state_buffer = []
 				self.last_action = None
 				self.last_reward = None
+				self.ep_reward = 0
 				self.state_buffer = []
 				self.episode_num += 1
 
