@@ -133,22 +133,22 @@ class RunSim:
 			# self.action_mutex.release()
 
 			if (screen_type == "red_wins"):
-				frame_reward = 50
+				frame_reward = 500
 				self.is_ingame = False
 			elif (screen_type == "blue_wins"):
-				frame_reward = -50
+				frame_reward = -500
 				self.is_ingame = False
 			elif (screen_type == "green_wins"):
-				frame_reward = -50
+				frame_reward = -500
 				self.is_ingame = False
 			elif (screen_type == "yellow_wins"):
-				frame_reward = -50
+				frame_reward = -500
 				self.is_ingame = False
 			elif (screen_type == "pink_wins"):
-				frame_reward = -50
+				frame_reward = -500
 				self.is_ingame = False
 			elif (screen_type == "purple_wins"):
-				frame_reward = -50
+				frame_reward = -500
 				self.is_ingame = False
 			else:
 				frame_reward = 1
