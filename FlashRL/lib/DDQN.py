@@ -200,8 +200,8 @@ class Trainer:
 		return retval
 	
 	def train(self, replay_memory, tf_session, tf_graph, model_path):
+		print("> training on episode "+str(self.episode_number))
 		for i in range(self.train_iterations):
-			print("batch #"+str(i))
 			minibatch = replay_memory.sample_batch(self.batch_size)
 			self.train_step(minibatch, tf_session, tf_graph)
 		# pdb.set_trace()
