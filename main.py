@@ -50,7 +50,7 @@ class RunSim:
 	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc, run_episode):
 		# print(vnc.screen.cursor_loc)
 		# pdb.set_trace()
-		print(screen_type)
+		# print(screen_type)
 
 		frame_reward = 0
 		self.is_ingame = False
@@ -95,7 +95,7 @@ class RunSim:
 		else:
 			self.is_ingame = True
 			# in game
-			print(action_in_game)
+			# print(action_in_game)
 			# print(self.curr_actions)
 			# self.action_mutex.acquire()
 			if (action_in_game == "UP"):

@@ -54,12 +54,13 @@ class Environment:
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 		self.BUFFER_SIZE = 4
-		self.REPLAY_MAX_SIZE = 100
+		self.REPLAY_MAX_SIZE = 10000
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 
 		self.prev_state_buffer = []
 		self.last_action = None
 		self.last_reward = None
+		self.ep_reward = 0
 		self.state_buffer = []
 		self.episode_num = 0
 
@@ -131,10 +132,12 @@ class Environment:
 				
 				if (self.end_episode):
 					self.end_episode = False
+					print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 
 					self.prev_state_buffer = []
 					self.last_action = None
 					self.last_reward = None
+					self.ep_reward = 0
 					self.state_buffer = []
 					self.episode_num += 1
 
@@ -190,11 +193,13 @@ class Environment:
 
 			self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, 
 															action_in_game, self.vnc, self.run_episode)
-			
+			self.ep_reward += self.last_reward
+
 			if (not self.is_ingame and (screen_type not in self.win_screens)):
 				self.prev_state_buffer = []
 				self.last_action = None
 				self.last_reward = None
+				self.ep_reward = 0
 				self.state_buffer = []
 				self.episode_num += 1
 
