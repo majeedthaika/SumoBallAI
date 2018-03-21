@@ -137,6 +137,8 @@ class Environment:
 					if (len(self.ep_buffer) > 3):
 						self.replay_memory.append_many(self.ep_buffer)
 						self.all_rewards.append(np.array([self.episode_num,self.ep_reward]))
+						
+						print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 
 						self.ep_buffer = []
 						self.prev_state_buffer = []
@@ -149,7 +151,6 @@ class Environment:
 						self.mutex.release()
 
 						if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
-							print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 							if not self.burned_in:
 								self.train_target = self.episode_num + 3
 								self.save_target = self.episode_num + 10
