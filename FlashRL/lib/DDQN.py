@@ -127,7 +127,7 @@ class Trainer:
 			"epsilon_final": 0.05,
 			"epsilon": 0.5,
 			"epsilon_decay": .995,
-			"epsilon_interval": 1000,
+			"epsilon_interval": 1500,
 			"gamma": 1,
 			"train_iterations": 30,
 			"num_iterations": 200,
