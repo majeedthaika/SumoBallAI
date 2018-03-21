@@ -90,7 +90,7 @@ class RunSim:
 		elif (screen_type in self.win_screens):
 			# vnc.send_press(K_RETURN) #restart game
 			if (screen_type == "red_wins"):
-				frame_reward = 500
+				frame_reward = 200
 				self.is_ingame = False
 			elif (screen_type == "blue_wins"):
 				frame_reward = -200
