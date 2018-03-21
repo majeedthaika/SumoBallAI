@@ -39,7 +39,6 @@ class Environment:
 		self.state_space = self.env_config["state_space"]
 
 		self.is_ingame = False
-		self.run_episode = True
 		self.mutex = Lock()
 
 		try:
@@ -192,7 +191,7 @@ class Environment:
 				self.last_action = action_idx
 
 			self.is_ingame, self.last_reward = self.frame_callback(state, img, self.frame_count, screen_type, 
-															action_in_game, self.vnc, self.run_episode)
+															action_in_game, self.vnc)
 			self.ep_reward += self.last_reward
 
 			if (not self.is_ingame and (screen_type not in self.win_screens)):

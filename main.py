@@ -47,15 +47,13 @@ class RunSim:
 			vnc.send_press(k)
 			self.curr_actions.add(k)
 
-	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc, run_episode):
+	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc):
 		# print(vnc.screen.cursor_loc)
 		# pdb.set_trace()
 		# print(screen_type)
 
 		frame_reward = 0
 		self.is_ingame = False
-		if not run_episode:
-			return self.is_ingame, frame_reward
 
 		if (screen_type == "load_screen"):
 			vnc.send_mouse("Left", (160, 207)) # click start
@@ -91,7 +89,26 @@ class RunSim:
 				vnc.send_mouse("Left", (295, 232)) # need twice to actually press button
 		elif (screen_type in self.win_screens):
 			# vnc.send_press(K_RETURN) #restart game
-			pass
+			if (screen_type == "red_wins"):
+				frame_reward = 500
+				self.is_ingame = False
+			elif (screen_type == "blue_wins"):
+				frame_reward = -200
+				self.is_ingame = False
+			elif (screen_type == "green_wins"):
+				frame_reward = -200
+				self.is_ingame = False
+			elif (screen_type == "yellow_wins"):
+				frame_reward = -200
+				self.is_ingame = False
+			elif (screen_type == "pink_wins"):
+				frame_reward = -200
+				self.is_ingame = False
+			elif (screen_type == "purple_wins"):
+				frame_reward = -200
+				self.is_ingame = False
+			else:
+				pass
 		else:
 			self.is_ingame = True
 			# in game
@@ -130,28 +147,8 @@ class RunSim:
 				if "w" not in self.curr_actions and "a" not in self.curr_actions and len(self.curr_actions) != 2:
 					self.release_all_keys(vnc)
 					self.add_new_keys(vnc, ["w","a"])
+			frame_reward = 1
 			# self.action_mutex.release()
-
-			if (screen_type == "red_wins"):
-				frame_reward = 500
-				self.is_ingame = False
-			elif (screen_type == "blue_wins"):
-				frame_reward = -200
-				self.is_ingame = False
-			elif (screen_type == "green_wins"):
-				frame_reward = -200
-				self.is_ingame = False
-			elif (screen_type == "yellow_wins"):
-				frame_reward = -200
-				self.is_ingame = False
-			elif (screen_type == "pink_wins"):
-				frame_reward = -200
-				self.is_ingame = False
-			elif (screen_type == "purple_wins"):
-				frame_reward = -200
-				self.is_ingame = False
-			else:
-				frame_reward = 1
 		return self.is_ingame, frame_reward
 
 
