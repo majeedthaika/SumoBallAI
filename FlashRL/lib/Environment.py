@@ -53,9 +53,10 @@ class Environment:
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 		self.BUFFER_SIZE = 4
-		self.REPLAY_MAX_SIZE = 10000
+		self.REPLAY_MAX_SIZE = 1000
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 
+		self.ep_buffer = []
 		self.prev_state_buffer = []
 		self.last_action = None
 		self.last_reward = None
@@ -126,39 +127,53 @@ class Environment:
 			if (self.last_action):
 				self.state_buffer = self.state_buffer[1:]
 				self.state_buffer.append(np.expand_dims(state[0], axis=2))
-				self.replay_memory.append(self.compress_state(self.prev_state_buffer), self.last_action, 
-					self.last_reward, self.compress_state(self.state_buffer), not self.is_ingame)
+				self.ep_buffer.append((self.compress_state(self.prev_state_buffer), self.last_action, 
+					self.last_reward, self.compress_state(self.state_buffer), not self.is_ingame))
 				
 				if (self.end_episode):
 					self.end_episode = False
-					print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
+					# pdb.set_trace()
+					if (len(self.ep_buffer) > 3):
+						self.replay_memory.append_many(self.ep_buffer)
+						print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 
-					self.prev_state_buffer = []
-					self.last_action = None
-					self.last_reward = None
-					self.ep_reward = 0
-					self.state_buffer = []
-					self.episode_num += 1
+						self.ep_buffer = []
+						self.prev_state_buffer = []
+						self.last_action = None
+						self.last_reward = None
+						self.ep_reward = 0
+						self.state_buffer = []
+						self.episode_num += 1
+						
+						self.mutex.release()
 
-					print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
-					if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
-						if not self.burned_in:
-							self.train_target = self.episode_num + 10
-							self.save_target = self.episode_num + 30
-							self.burned_in = True
+						# print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
+						if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
+							if not self.burned_in:
+								self.train_target = self.episode_num + 10
+								self.save_target = self.episode_num + 30
+								self.burned_in = True
 
-						print(self.episode_num, self.train_target, self.save_target)
-						if self.episode_num >= self.train_target:
-							self.epsilon = Trainer(self.ingame_action_space, self.critic_model, 
-								self.actor_model, self.episode_num).train(self.replay_memory,
-								self.tf_session, self.tf_graph, self.ingame_models_path)
-							self.train_target = self.episode_num + 10
-						if self.episode_num >= self.save_target:
-							with self.tf_session.as_default():
-								with self.tf_graph.as_default():
-									self.critic_model.set_weights(self.actor_model.get_weights())
-							self.save_target = self.episode_num + 30
-					self.mutex.release()
+							# print(self.episode_num, self.train_target, self.save_target)
+							if self.episode_num >= self.train_target:
+								self.epsilon = Trainer(self.ingame_action_space, self.critic_model, 
+									self.actor_model, self.episode_num).train(self.replay_memory,
+									self.tf_session, self.tf_graph, self.ingame_models_path)
+								self.train_target = self.episode_num + 10
+							if self.episode_num >= self.save_target:
+								with self.tf_session.as_default():
+									with self.tf_graph.as_default():
+										self.critic_model.set_weights(self.actor_model.get_weights())
+								self.save_target = self.episode_num + 30
+					else:
+						self.ep_buffer = []
+						self.prev_state_buffer = []
+						self.last_action = None
+						self.last_reward = None
+						self.ep_reward = 0
+						self.state_buffer = []
+
+						self.mutex.release()
 				else:
 					self.mutex.release()				
 			else:
@@ -195,12 +210,12 @@ class Environment:
 			self.ep_reward += self.last_reward
 
 			if (not self.is_ingame and (screen_type not in self.win_screens)):
+				self.ep_buffer = []
 				self.prev_state_buffer = []
 				self.last_action = None
 				self.last_reward = None
 				self.ep_reward = 0
 				self.state_buffer = []
-				self.episode_num += 1
 
 			self.frame_count += 1
 		else:

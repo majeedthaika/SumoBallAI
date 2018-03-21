@@ -50,6 +50,12 @@ class Replay_Memory():
 			self.memory[self.tail] = transition
 			self.tail = (self.tail + 1) % self.memory_size
 
+	def append_many(self, all_states):
+		# Appends transition to the memory.
+		for one_transition in all_states:
+			state, action, reward, next_state, is_terminal = one_transition
+			self.append(state, action, reward, next_state, is_terminal)
+
 	def __len__(self):
 		return len(self.memory)
 
