@@ -70,6 +70,7 @@ class Environment:
 		self.win_screens = {"pink_wins", "purple_wins", "blue_wins", "red_wins", "yellow_wins", "green_wins"}
 		self.end_episode = False
 		self.in_win_screen = False
+		self.epsilon = 0.5
 		# self.prev_win_screen = False
 
 		with self.tf_session.as_default():
@@ -146,7 +147,7 @@ class Environment:
 
 						print(self.episode_num, self.train_target, self.save_target)
 						if self.episode_num >= self.train_target:
-							Trainer(self.ingame_action_space, self.critic_model, 
+							self.epsilon = Trainer(self.ingame_action_space, self.critic_model, 
 								self.actor_model, self.episode_num).train(self.replay_memory,
 								self.tf_session, self.tf_graph, self.ingame_models_path)
 							self.train_target = self.episode_num + 10
@@ -176,8 +177,12 @@ class Environment:
 					for i in range(self.BUFFER_SIZE):
 						self.state_buffer.append(np.expand_dims(state[0], axis=2))
 
-				action_idx = np.argmax(self.critic_model.predict(
-					np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])
+				# pdb.set_trace()
+				if (np.random.uniform() > self.epsilon):
+					action_idx = np.argmax(self.critic_model.predict(
+						np.expand_dims(self.compress_state(self.state_buffer), axis=0), batch_size=1)[0])
+				else:
+					action_idx = np.random.randint(0,self.ingame_action_space)
 
 				action_in_game = self.ingame_actions[action_idx]
 				self.prev_state_buffer = self.state_buffer

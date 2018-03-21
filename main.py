@@ -95,8 +95,8 @@ class RunSim:
 		else:
 			self.is_ingame = True
 			# in game
-			# print(action_in_game)
-			print(self.curr_actions)
+			print(action_in_game)
+			# print(self.curr_actions)
 			# self.action_mutex.acquire()
 			if (action_in_game == "UP"):
 				if "w" not in self.curr_actions or len(self.curr_actions) != 1:
