@@ -212,8 +212,8 @@ class Trainer:
 				if self.episode_number % 10 == 0:
 					self.actor_model.save(os.path.join(model_path, 
 						"checkpoint_"+str(self.episode_number/10 % 10)+".h5"))
-		print("> saving trained actor_model at episode "+str(self.episode_number)+
-			" to ingame_models/checkpoint_"+str(self.episode_number/10 % 10)+".h5")
+					print("> saving trained actor_model at episode "+str(self.episode_number)+
+						" to ingame_models/checkpoint_"+str(self.episode_number/10 % 10)+".h5")
 		return self.epsilon
 
 
