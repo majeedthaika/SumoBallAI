@@ -130,7 +130,7 @@ class RunSim:
 				if "w" not in self.curr_actions and "a" not in self.curr_actions and len(self.curr_actions) != 2:
 					self.release_all_keys(vnc)
 					self.add_new_keys(vnc, ["w","a"])
-			self.action_mutex.release()
+			# self.action_mutex.release()
 
 			if (screen_type == "red_wins"):
 				frame_reward = 50

@@ -54,7 +54,7 @@ class Environment:
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 		self.BUFFER_SIZE = 4
-		self.REPLAY_MAX_SIZE = 500
+		self.REPLAY_MAX_SIZE = 100
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 
 		self.prev_state_buffer = []
@@ -140,8 +140,8 @@ class Environment:
 					print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
 					if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
 						if not self.burned_in:
-							self.train_target = self.episode_num + 3
-							self.save_target = self.episode_num + 10
+							self.train_target = self.episode_num + 10
+							self.save_target = self.episode_num + 30
 							self.burned_in = True
 
 						print(self.episode_num, self.train_target, self.save_target)
@@ -149,17 +149,18 @@ class Environment:
 							Trainer(self.ingame_action_space, self.critic_model, 
 								self.actor_model, self.episode_num).train(self.replay_memory,
 								self.tf_session, self.tf_graph, self.ingame_models_path)
-							self.train_target = self.episode_num + 3
-							if self.episode_num >= self.save_target:
-								with self.tf_session.as_default():
-									with self.tf_graph.as_default():
-										self.critic_model.set_weights(self.actor_model.get_weights())
-								self.save_target = self.episode_num + 10
+							self.train_target = self.episode_num + 10
+						if self.episode_num >= self.save_target:
+							with self.tf_session.as_default():
+								with self.tf_graph.as_default():
+									self.critic_model.set_weights(self.actor_model.get_weights())
+							self.save_target = self.episode_num + 30
 					self.mutex.release()
 				else:
 					self.mutex.release()				
 			else:
-				self.mutex.release()				
+				self.mutex.release()	
+
 
 			screen_type = self.action_names[np.argmax(self.model.predict(np.expand_dims(state,axis=3))[0])]
 			self.in_win_screen = (screen_type in self.win_screens)
