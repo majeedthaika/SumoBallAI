@@ -201,8 +201,9 @@ class Trainer:
 		self.epsilon = self.annealing(self.episode_number)
 		with tf_session.as_default():
 			with tf_graph.as_default():
-				self.actor_model.save(os.path.join(model_path, 
-					"checkpoint_"+str(self.episode_number)+".h5"))
 				self.critic_model.set_weights(self.actor_model.get_weights())
+				if self.episode_number:
+					self.actor_model.save(os.path.join(model_path, 
+						"checkpoint_"+str(self.episode_number)+".h5"))
 
 
