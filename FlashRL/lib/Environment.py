@@ -53,7 +53,7 @@ class Environment:
 		self.ingame_models_path = os.path.join(os.getcwd(), "ingame_models")
 		self.ingame_load_model_path = os.path.join(self.ingame_models_path, self.env_config["ingame_model"])
 		self.BUFFER_SIZE = 4
-		self.REPLAY_MAX_SIZE = 2000
+		self.REPLAY_MAX_SIZE = 5000
 		self.replay_memory = Replay_Memory(memory_size=self.REPLAY_MAX_SIZE)
 		self.all_rewards = []
 
