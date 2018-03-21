@@ -3,7 +3,7 @@ from keras import backend as K
 from keras.layers import Input, Add, Subtract, Average, RepeatVector, Lambda, Activation, Conv2D
 from keras.backend import mean, update_sub, ones, shape, sum, expand_dims
 from keras.layers.core import Dense, Activation, Flatten
-from keras.models import Sequential, Model, save_model, load_model
+from keras.models import Sequential, Model, load_model
 from keras.optimizers import Adam
 from collections import deque
 import json, os, errno
@@ -54,7 +54,7 @@ class Replay_Memory():
 		return len(self.memory)
 
 class DQN_Model:
-	def __init__(self, action_size, model_path, predict=True, filename=None, lr =  0.0001,  gamma = 1,):
+	def __init__(self, action_size, model_path, filename=None, predict=True, lr =  0.0001,  gamma = 1,):
 		self.action_size = action_size
 		self.state_size = (84, 84, 4)
 		self.model_path = model_path
@@ -89,10 +89,18 @@ class DQN_Model:
 			self.model._make_predict_function()
 
 	def predict(self, state, batch_size=None):
-		if batch_size:
+		if not batch_size:
 			return self.model.predict(state)
 		else:
 			return self.model.predict(state, batch_size)
+
+	def fit(self, x, y, batch_size=None):
+		with tf_session.as_default():
+			with tf_graph.as_default():
+				if not batch_size:
+					return self.model.fit(x,y,epochs=1,verbose=0)
+				else:
+					return self.model.fit(x,y,epochs=1,verbose=0,batch_size=batch_size)
 
 	def get_model(self):
 		return self.model
@@ -107,7 +115,7 @@ class DQN_Model:
 			self.model = load_model(os.path.join(self.model_path, "checkpoint_0.h5"))
 
 class Trainer:
-	def __init__(self, action_size, model_path, episode_number, batch_size=32, lr=0.0001, gamma=1):
+	def __init__(self, action_size, critic_model, actor_model, episode_number, batch_size=32, lr=0.0001, gamma=1):
 		params = {
 			"epsilon_initial": 0.5,
 			"epsilon_final": 0.05,
@@ -134,9 +142,10 @@ class Trainer:
 		self.batch_size = batch_size
 		self.episode_number = episode_number
 		# pdb.set_trace()
-		self.Model_class = DQN_Model(action_size, model_path, 
-			"checkpoint_"+str(self.episode_number)+".h5", False)
-		self.model = self.Model_class.get_model()
+		
+		self.actor_model = actor_model
+		self.critic_model = critic_model
+		
 		self.epsilon = float(params['epsilon'])
 		self.epsilon_decay = float(params['epsilon_decay'])
 		self.epsilon_initial = float(params['epsilon_initial'])
@@ -150,13 +159,13 @@ class Trainer:
 		self.learning_rate = float(params['learning_rate'])
 		self.train_iterations = int(params['train_iterations'])
 
-	def train_step(self, minibatch):
-		pdb.set_trace()
+	def train_step(self, minibatch, tf_session, tf_graph):
+		# pdb.set_trace()
 		batch_size = len(minibatch)
 		# SGD on minibatch
 		s, actions, rewards, ss, dones = [np.array(x) for x in zip(*minibatch)]
 
-		qmax_ss = np.amax(self.model.predict(ss), axis=1, keepdims=1)
+		qmax_ss = np.amax(self.critic_model.predict(ss), axis=1, keepdims=1)
 
 		assert qmax_ss.shape==(batch_size, 1), qmax_ss.shape
 		assert rewards.shape==(batch_size, 1), rewards.shape
@@ -166,34 +175,34 @@ class Trainer:
 		g = g.astype('float32')
 		assert g.shape==(batch_size, 1), g.shape
 
-		target_q_s = self.model.predict(s)
+		target_q_s = self.critic_model.predict(s)
 		target_q_s[np.arange(batch_size), actions.reshape(-1)] = g.reshape(-1)
 		assert (target_q_s[np.arange(batch_size), actions.reshape(-1)] == g.reshape(-1)).all()
-		print(self.model.summary())
-		print(s.shape)
-		print(target_q_s.shape)
 		# pdb.set_trace()
-		self.model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)	
+		with tf_session.as_default():
+			with tf_graph.as_default():
+				self.actor_model.fit(s,target_q_s,epochs=1,verbose=0,batch_size=batch_size)
 
-	def annealing(self, num_episode, iterations, strategy='linear', step='episodes'):
-		if step == 'episodes':
-			if strategy == 'linear':
-				retval = max(self.epsilon_initial - num_episode * (self.epsilon_initial - self.epsilon_final) / self.num_episodes, self.epsilon_final)
-			elif strategy == 'exponential':
-				if self.epsilon <= self.epsilon_final:
-					return self.epsilon_final
-				retval = self.epsilon * self.epsilon_decay
-		else:
-			if strategy == 'linear':
-				retval = max(self.epsilon_initial - iterations * (self.epsilon_initial - self.epsilon_final) / self.epsilon_interval, self.epsilon_final)
+	def annealing(self, num_episode, strategy='linear'):
+		if strategy == 'linear':
+			retval = max(self.epsilon_initial - num_episode * (self.epsilon_initial - self.epsilon_final) / self.num_episodes, self.epsilon_final)
+		elif strategy == 'exponential':
+			if self.epsilon <= self.epsilon_final:
+				return self.epsilon_final
+			retval = self.epsilon * self.epsilon_decay
 		return retval
 	
-	def train(self, replay_memory):
+	def train(self, replay_memory, tf_session, tf_graph, model_path):
 		for i in range(self.train_iterations):
 			print("batch #"+str(i))
 			minibatch = replay_memory.sample_batch(self.batch_size)
-			self.train_step(minibatch)
-		self.epsilon = self.annealing(episode_number, iterations)
-		self.model.save_model(os.path.join(self.model_path, 
-			"checkpoint_"+str(self.episode_number)+".h5"))
+			self.train_step(minibatch, tf_session, tf_graph)
+		# pdb.set_trace()
+		self.epsilon = self.annealing(self.episode_number)
+		with tf_session.as_default():
+			with tf_graph.as_default():
+				self.actor_model.save(os.path.join(model_path, 
+					"checkpoint_"+str(self.episode_number)+".h5"))
+				self.critic_model.set_weights(self.actor_model.get_weights())
+
 

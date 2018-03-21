@@ -38,6 +38,7 @@ class RunSim:
 	def on_frame(self, state, img, frame, screen_type, action_in_game, vnc, run_episode):
 		# print(vnc.screen.cursor_loc)
 		# pdb.set_trace()
+		print(screen_type)
 
 		frame_reward = 0
 		if not run_episode:
@@ -79,8 +80,8 @@ class RunSim:
 					vnc.send_mouse("Left", (295, 232)) # need twice to actually press button
 					self.is_ingame = True
 			elif (screen_type in self.win_screens):
-				vnc.send_press(K_RETURN) #restart game
-				self.is_ingame = True
+				# vnc.send_press(K_RETURN) #restart game
+				self.is_ingame = False
 			else:
 				self.is_ingame = True
 		else:
