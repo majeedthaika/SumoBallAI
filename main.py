@@ -152,4 +152,4 @@ class RunSim:
 		return self.is_ingame, frame_reward
 
 
-RunSim(set_player_types=["Player2", "CPU1", "None", "None", "None", "None"], set_deathmatch=False)
+RunSim(set_player_types=["Player2", "Player1", "None", "None", "None", "None"], set_deathmatch=False)

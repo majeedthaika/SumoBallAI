@@ -137,7 +137,6 @@ class Environment:
 					if (len(self.ep_buffer) > 3):
 						self.replay_memory.append_many(self.ep_buffer)
 						self.all_rewards.append(np.array([self.episode_num,self.ep_reward]))
-						print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 
 						self.ep_buffer = []
 						self.prev_state_buffer = []
@@ -149,8 +148,8 @@ class Environment:
 						
 						self.mutex.release()
 
-						# print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
 						if len(self.replay_memory.memory) == self.REPLAY_MAX_SIZE:
+							print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward))
 							if not self.burned_in:
 								self.train_target = self.episode_num + 3
 								self.save_target = self.episode_num + 10
@@ -169,6 +168,8 @@ class Environment:
 									with self.tf_graph.as_default():
 										self.critic_model.set_weights(self.actor_model.get_weights())
 								self.save_target = self.episode_num + 10
+						else:
+							print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
 					else:
 						self.ep_buffer = []
 						self.prev_state_buffer = []
