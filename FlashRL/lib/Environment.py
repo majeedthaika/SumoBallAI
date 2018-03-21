@@ -170,7 +170,8 @@ class Environment:
 										self.critic_model.set_weights(self.actor_model.get_weights())
 								self.save_target = self.episode_num + 10
 						else:
-							print(len(self.replay_memory.memory), self.REPLAY_MAX_SIZE)
+							print("burn-in progress: "+str(len(self.replay_memory.memory))+
+								"/"+str(self.REPLAY_MAX_SIZE))
 					else:
 						self.ep_buffer = []
 						self.prev_state_buffer = []
