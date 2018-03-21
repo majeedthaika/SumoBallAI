@@ -139,7 +139,7 @@ class Environment:
 						self.all_rewards.append(np.array([self.episode_num,self.ep_reward]))
 						
 						print("Episode #"+str(self.episode_num)+": "+str(self.ep_reward)+
-							", epsilon: "+ self.epsilon)
+							", epsilon: "+ str(self.epsilon))
 
 						self.ep_buffer = []
 						self.prev_state_buffer = []
